@@ -21,9 +21,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool loading = false;
   String? error;
 
-  bool isInstitutionalEmail(String email) {
-    return email.endsWith('@alumno.ipn.mx');
-  }
 
   void register() async {
     final name = nameController.text.trim();
@@ -32,19 +29,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final confirmPassword = confirmPasswordController.text.trim();
 
     // VALIDACIONES
-    if (name.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       setState(() {
         error = 'Todos los campos son obligatorios';
-      });
-      return;
-    }
-
-    if (!isInstitutionalEmail(email)) {
-      setState(() {
-        error = 'Usa tu correo institucional (@alumno.ipn.mx)';
       });
       return;
     }
@@ -75,19 +62,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
         name: name,
       );
 
+      if (!mounted) return; 
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Registro exitoso')),
       );
 
       Navigator.pop(context); // volver al login
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
-        error = 'No se pudo registrar el usuario';
+        // muestra el mensaje real del AuthService si quieres:
+        error = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
 
@@ -108,7 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 16),
 
               CustomTextField(
-                label: 'Correo institucional',
+                label: 'Correo institucional(@alumno.ipn.mx), Las cuentas de organizador las crea el administrador.',
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 icon: Icons.email,

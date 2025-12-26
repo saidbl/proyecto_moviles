@@ -32,17 +32,25 @@ class _LoginScreenState extends State<LoginScreen> {
         passwordController.text.trim(),
       );
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bienvenido')),
       );
+
+      // No navegamos manualmente: AuthGate se encarga
     } catch (e) {
+      if (!mounted) return; 
+
       setState(() {
         error = 'Correo o contraseña incorrectos';
       });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
 

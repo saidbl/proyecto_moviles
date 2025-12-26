@@ -17,9 +17,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool loading = false;
   String? error;
 
-  bool isInstitutionalEmail(String email) {
-    return email.endsWith('@alumno.ipn.mx');
-  }
 
   void sendRecoveryEmail() async {
     final email = emailController.text.trim();
@@ -27,13 +24,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (email.isEmpty) {
       setState(() {
         error = 'Ingresa tu correo institucional';
-      });
-      return;
-    }
-
-    if (!isInstitutionalEmail(email)) {
-      setState(() {
-        error = 'Usa tu correo institucional (@alumno.ipn.mx)';
       });
       return;
     }
@@ -46,25 +36,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       await authService.resetPassword(email);
 
+      if (!mounted) return; // ✅ FIX
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Correo de recuperación enviado. Revisa tu bandeja.',
-          ),
+          content: Text('Correo de recuperación enviado. Revisa tu bandeja.'),
         ),
       );
 
       Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return; // ✅ FIX
+
       setState(() {
-        error = 'No se pudo enviar el correo de recuperación';
+        error = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
