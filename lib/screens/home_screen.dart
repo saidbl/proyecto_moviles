@@ -4,6 +4,11 @@ import '../services/user_service.dart';
 import '../models/user_model.dart';
 import 'profile_screen.dart';
 
+// ✅ Sprint 2 screens
+import 'events/event_list_screen.dart';
+import 'events/my_events_screen.dart';
+import 'events/create_edit_event_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -30,15 +35,17 @@ class _HomeScreenState extends State<HomeScreen> {
         final u = snap.data!;
         final role = u.role;
 
-        // Páginas por rol
-        final List<Widget> pages;
-        final List<NavigationDestination> destinations;
+        // =========================
+        // PÁGINAS POR ROL
+        // =========================
+        late final List<Widget> pages;
+        late final List<NavigationDestination> destinations;
 
         if (role == 'estudiante') {
-          pages = const [
-            Center(child: Text('Eventos (Sprint 2)')),
-            Center(child: Text('Mis registros (Sprint 4)')),
-            ProfileScreen(),
+          pages = [
+            EventListScreen(isAdmin: false, currentUid: u.uid),
+            const Center(child: Text('Mis registros (Sprint 3)')),
+            const ProfileScreen(),
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event), label: 'Eventos'),
@@ -46,10 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
           ];
         } else if (role == 'organizador') {
-          pages = const [
-            Center(child: Text('Mis eventos (Sprint 2)')),
-            Center(child: Text('Crear evento (Sprint 2)')),
-            ProfileScreen(),
+          pages = [
+            MyEventsScreen(currentUid: u.uid),
+            const CreateEditEventScreen(),
+            const ProfileScreen(),
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event_note), label: 'Mis eventos'),
@@ -58,10 +65,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ];
         } else {
           // admin
-          pages = const [
-            Center(child: Text('Todos los eventos (Sprint 2)')),
-            Center(child: Text('Gestión admin (Sprint 2/3)')),
-            ProfileScreen(),
+          pages = [
+            EventListScreen(isAdmin: true, currentUid: u.uid),
+            const Center(child: Text('Gestión admin (Sprint 3)')),
+            const ProfileScreen(),
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event_available), label: 'Eventos'),
@@ -70,22 +77,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ];
         }
 
-        // Evitar out of range si cambias rol
-        if (index >= pages.length) index = 0;
+        // Evitar out-of-range si cambia el rol o cambian tabs
+        if (index >= pages.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => index = 0);
+          });
+        }
 
         return Scaffold(
           appBar: AppBar(
             title: Text('Hola, ${u.name} (${u.role})'),
             actions: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Center(
-                  child: Text(
-                    role,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
               IconButton(
                 tooltip: 'Cerrar sesión',
                 onPressed: () async => auth.signOut(),
