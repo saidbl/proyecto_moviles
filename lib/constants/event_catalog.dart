@@ -1,4 +1,6 @@
-const Map<String, List<String>> EVENT_CATALOG = {
+/// Dart recomienda lowerCamelCase para constantes.
+/// Si quieres ALL_CAPS, se permite pero te marca lint.
+const Map<String, List<String>> eventCatalog = {
   'Académicos': [
     'Conferencias',
     'Seminarios',

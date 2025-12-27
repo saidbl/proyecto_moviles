@@ -54,7 +54,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
     super.dispose();
   }
 
-  Future<DateTime?> _pickDateTime(DateTime? current) async {
+  Future<DateTime?> pickDateTime(DateTime? current) async {
     final now = DateTime.now();
     final base = current ?? now;
 
@@ -75,7 +75,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
-  Future<void> _save() async {
+  Future<void> save() async {
     setState(() {
       loading = true;
       error = null;
@@ -140,8 +140,9 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = EVENT_CATALOG.keys.toList();
-    final subcats = category == null ? <String>[] : (EVENT_CATALOG[category] ?? <String>[]);
+    final categories = eventCatalog.keys.toList();
+    final subcats =
+        category == null ? <String>[] : (eventCatalog[category] ?? <String>[]);
 
     return Scaffold(
       appBar: AppBar(
@@ -153,83 +154,105 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
           children: [
             TextField(
               controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Título', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Título',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: descCtrl,
               maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Descripción', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Descripción',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
-
             DropdownButtonFormField<String>(
               value: category,
-              decoration: const InputDecoration(labelText: 'Categoría', border: OutlineInputBorder()),
-              items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              decoration: const InputDecoration(
+                labelText: 'Categoría',
+                border: OutlineInputBorder(),
+              ),
+              items: categories
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
               onChanged: (v) => setState(() {
                 category = v;
                 subcategory = null;
               }),
             ),
             const SizedBox(height: 16),
-
             DropdownButtonFormField<String>(
               value: subcategory,
-              decoration: const InputDecoration(labelText: 'Tipo de evento', border: OutlineInputBorder()),
-              items: subcats.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              decoration: const InputDecoration(
+                labelText: 'Tipo de evento',
+                border: OutlineInputBorder(),
+              ),
+              items: subcats
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
               onChanged: category == null ? null : (v) => setState(() => subcategory = v),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: locationCtrl,
-              decoration: const InputDecoration(labelText: 'Ubicación', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Ubicación',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: capacityCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Cupo máximo', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Cupo máximo',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: loading ? null : () async {
-                      final dt = await _pickDateTime(startAt);
-                      if (dt != null) setState(() => startAt = dt);
-                    },
-                    child: Text(startAt == null ? 'Inicio' : 'Inicio: ${startAt!.toString()}'),
+                    onPressed: loading
+                        ? null
+                        : () async {
+                            final dt = await pickDateTime(startAt);
+                            if (dt != null) setState(() => startAt = dt);
+                          },
+                    child: Text(
+                      startAt == null ? 'Inicio' : 'Inicio: ${startAt!.toString()}',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: loading ? null : () async {
-                      final dt = await _pickDateTime(endAt);
-                      if (dt != null) setState(() => endAt = dt);
-                    },
-                    child: Text(endAt == null ? 'Fin' : 'Fin: ${endAt!.toString()}'),
+                    onPressed: loading
+                        ? null
+                        : () async {
+                            final dt = await pickDateTime(endAt);
+                            if (dt != null) setState(() => endAt = dt);
+                          },
+                    child: Text(
+                      endAt == null ? 'Fin' : 'Fin: ${endAt!.toString()}',
+                    ),
                   ),
                 ),
               ],
             ),
-
             if (error != null) ...[
               const SizedBox(height: 12),
               Text(error!, style: const TextStyle(color: Colors.red)),
             ],
-
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: loading ? null : _save,
+                onPressed: loading ? null : save,
                 child: Text(loading ? 'Guardando...' : 'Guardar'),
               ),
             ),

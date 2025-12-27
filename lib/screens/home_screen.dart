@@ -8,6 +8,7 @@ import 'profile_screen.dart';
 import 'events/event_list_screen.dart';
 import 'events/my_events_screen.dart';
 import 'events/create_edit_event_screen.dart';
+import 'events/my_registrations_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,16 +36,21 @@ class _HomeScreenState extends State<HomeScreen> {
         final u = snap.data!;
         final role = u.role;
 
-        // =========================
-        // PÁGINAS POR ROL
-        // =========================
+        final bool isStudent = role == 'estudiante';
+        final bool isOrganizer = role == 'organizador';
+        final bool isAdmin = role == 'admin';
+
         late final List<Widget> pages;
         late final List<NavigationDestination> destinations;
 
-        if (role == 'estudiante') {
+        if (isStudent) {
           pages = [
-            EventListScreen(isAdmin: false, currentUid: u.uid),
-            const Center(child: Text('Mis registros (Sprint 3)')),
+            EventListScreen(
+              isAdmin: false,
+              currentUid: u.uid,
+              canRegister: true,
+            ),
+            const MyRegistrationsScreen(), // ✅ aqui
             const ProfileScreen(),
           ];
           destinations = const [
@@ -52,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
             NavigationDestination(icon: Icon(Icons.check_circle), label: 'Mis registros'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
           ];
-        } else if (role == 'organizador') {
+        } else if (isOrganizer) {
           pages = [
             MyEventsScreen(currentUid: u.uid),
             const CreateEditEventScreen(),
@@ -63,10 +69,13 @@ class _HomeScreenState extends State<HomeScreen> {
             NavigationDestination(icon: Icon(Icons.add_box), label: 'Crear'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
           ];
-        } else {
-          // admin
+        } else if (isAdmin) {
           pages = [
-            EventListScreen(isAdmin: true, currentUid: u.uid),
+            EventListScreen(
+              isAdmin: true,
+              currentUid: u.uid,
+              canRegister: false, // ✅ admin NO se registra a eventos
+            ),
             const Center(child: Text('Gestión admin (Sprint 3)')),
             const ProfileScreen(),
           ];
@@ -75,9 +84,19 @@ class _HomeScreenState extends State<HomeScreen> {
             NavigationDestination(icon: Icon(Icons.admin_panel_settings), label: 'Gestión'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
           ];
+        } else {
+          // fallback por si llega un rol raro
+          pages = const [
+            Center(child: Text('Rol no válido')),
+            ProfileScreen(),
+          ];
+          destinations = const [
+            NavigationDestination(icon: Icon(Icons.error), label: 'Error'),
+            NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
+          ];
         }
 
-        // Evitar out-of-range si cambia el rol o cambian tabs
+        // Evitar out-of-range si cambian tabs/rol
         if (index >= pages.length) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) setState(() => index = 0);

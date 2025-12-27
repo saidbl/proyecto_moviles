@@ -11,8 +11,10 @@ class EventModel {
   final DateTime startAt;
   final DateTime endAt;
 
-  final int capacity;        // cupo_maximo
-  final bool isActive;       // estado_evento
+  final int capacity; // cupo_maximo
+  final bool isActive; // estado_evento
+
+  final int registrationsCount; // ✅ conteo de registros (para cupo)
 
   final String organizerId;
   final String organizerName;
@@ -31,11 +33,16 @@ class EventModel {
     required this.endAt,
     required this.capacity,
     required this.isActive,
+    required this.registrationsCount,
     required this.organizerId,
     required this.organizerName,
     this.createdAt,
     this.updatedAt,
   });
+
+  // ✅ Helpers
+  int get remaining => (capacity - registrationsCount).clamp(0, capacity);
+  bool get isFull => remaining <= 0;
 
   Map<String, dynamic> toMap() => {
         'title': title,
@@ -47,19 +54,27 @@ class EventModel {
         'endAt': Timestamp.fromDate(endAt),
         'capacity': capacity,
         'isActive': isActive,
+        'registrationsCount': registrationsCount,
         'organizerId': organizerId,
         'organizerName': organizerName,
-        'createdAt': createdAt == null ? FieldValue.serverTimestamp() : Timestamp.fromDate(createdAt!),
+        'createdAt': createdAt == null
+            ? FieldValue.serverTimestamp()
+            : Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
   static EventModel fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
 
-    DateTime _ts(dynamic x) {
+    DateTime parseTimestamp(dynamic x) {
       if (x is Timestamp) return x.toDate();
       if (x is DateTime) return x;
-      return DateTime.fromMillisecondsSinceEpoch(0); // ✅ “muy viejo” en vez de now()
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+
+    int parseInt(dynamic x) {
+      if (x is int) return x;
+      return int.tryParse('$x') ?? 0;
     }
 
     return EventModel(
@@ -69,14 +84,18 @@ class EventModel {
       category: (d['category'] ?? '').toString(),
       subcategory: (d['subcategory'] ?? '').toString(),
       location: (d['location'] ?? '').toString(),
-      startAt: _ts(d['startAt']),
-      endAt: _ts(d['endAt']),
-      capacity: (d['capacity'] ?? 0) is int ? d['capacity'] : int.tryParse('${d['capacity']}') ?? 0,
+      startAt: parseTimestamp(d['startAt']),
+      endAt: parseTimestamp(d['endAt']),
+      capacity: parseInt(d['capacity']),
       isActive: (d['isActive'] ?? true) == true,
+      registrationsCount: parseInt(d['registrationsCount']),
       organizerId: (d['organizerId'] ?? '').toString(),
       organizerName: (d['organizerName'] ?? '').toString(),
-      createdAt: d['createdAt'] is Timestamp ? (d['createdAt'] as Timestamp).toDate() : null,
-      updatedAt: d['updatedAt'] is Timestamp ? (d['updatedAt'] as Timestamp).toDate() : null,
+      createdAt:
+          d['createdAt'] is Timestamp ? (d['createdAt'] as Timestamp).toDate() : null,
+      updatedAt:
+          d['updatedAt'] is Timestamp ? (d['updatedAt'] as Timestamp).toDate() : null,
     );
   }
 }
+

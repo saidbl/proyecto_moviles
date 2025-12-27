@@ -7,10 +7,14 @@ class EventListScreen extends StatefulWidget {
   final bool isAdmin;
   final String currentUid;
 
+  // ✅ NUEVO: controla si el rol puede registrarse
+  final bool canRegister;
+
   const EventListScreen({
     super.key,
     required this.isAdmin,
     required this.currentUid,
+    this.canRegister = true, // por defecto true (pero en Home lo apagas para admin)
   });
 
   @override
@@ -53,9 +57,11 @@ class _EventListScreenState extends State<EventListScreen> {
 
         if (events.isEmpty) {
           return Center(
-            child: Text(widget.isAdmin
-                ? 'Aún no hay eventos creados.'
-                : 'Aún no hay eventos disponibles.'),
+            child: Text(
+              widget.isAdmin
+                  ? 'Aún no hay eventos creados.'
+                  : 'Aún no hay eventos disponibles.',
+            ),
           );
         }
 
@@ -78,12 +84,19 @@ class _EventListScreenState extends State<EventListScreen> {
                   title: Text(e.title),
                   subtitle: Text('${e.category} • ${e.subcategory}\n${e.location}'),
                   isThreeLine: true,
-                  trailing: e.isActive ? null : const Icon(Icons.cancel, color: Colors.red),
+                  trailing: e.isActive
+                      ? null
+                      : const Icon(Icons.cancel, color: Colors.red),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => EventDetailScreen(event: e, canEdit: canEdit),
+                        builder: (_) => EventDetailScreen(
+                          event: e,
+                          canEdit: canEdit,
+                          // ✅ PASO 4 Sprint 3: solo alumno puede registrarse
+                          canRegister: widget.canRegister,
+                        ),
                       ),
                     );
                   },
