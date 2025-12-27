@@ -3,6 +3,9 @@ import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../models/user_model.dart';
 import 'profile_screen.dart';
+import '../screens/notifications_screen.dart';
+import '../services/notification_service.dart';
+import '../models/notification_model.dart';
 
 // ✅ Sprint 2 screens
 import 'events/event_list_screen.dart';
@@ -21,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int index = 0;
   final auth = AuthService();
   final userService = UserService();
+  final notificationService = NotificationService();
+
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +112,50 @@ class _HomeScreenState extends State<HomeScreen> {
           appBar: AppBar(
             title: Text('Hola, ${u.name} (${u.role})'),
             actions: [
+
+              // 🔔 NOTIFICACIONES
+              StreamBuilder<List<AppNotification>>(
+                stream: notificationService.getMyNotifications(u.uid),
+                builder: (context, snap) {
+                  final notifications = snap.data ?? [];
+                  final unreadCount =
+                      notifications.where((n) => !n.read).length;
+
+                  return Stack(
+                    children: [
+                      IconButton(
+                        tooltip: 'Notificaciones',
+                        icon: const Icon(Icons.notifications),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // 🔴 BADGE SI HAY NO LEÍDAS
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 10,
+                          top: 10,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+
+              // 🚪 LOGOUT
               IconButton(
                 tooltip: 'Cerrar sesión',
                 onPressed: () async => auth.signOut(),
@@ -114,6 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+
           body: pages[index],
           bottomNavigationBar: NavigationBar(
             selectedIndex: index,

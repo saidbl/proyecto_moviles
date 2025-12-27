@@ -3,11 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
 import '../models/my_registration_model.dart';
 import '../services/user_service.dart';
+import '../services/notification_service.dart';
+
 
 class EventService {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   final _userService = UserService();
+  final _notificationService = NotificationService();
 
   String get _uid {
     final u = _auth.currentUser;
@@ -130,9 +133,16 @@ class EventService {
       'isActive': true,
       'organizerId': _uid,
       'organizerName': me.name,
+      'organizerNotificationPrefs': me.notificationPrefs,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await _notificationService.createNotification(
+      userId: _uid,
+      title: 'Evento creado',
+      message: 'Tu evento "$title" fue publicado correctamente.',
+    );
+
   }
 
   Future<void> updateEvent({
@@ -164,6 +174,12 @@ class EventService {
       'isActive': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await _notificationService.createNotification(
+      userId: _uid,
+      title: 'Evento cancelado',
+      message: 'El evento fue marcado como cancelado.',
+    );
+
   }
 
   // =========================
@@ -176,6 +192,9 @@ class EventService {
 
     final eventRef = _db.collection('events').doc(eventId);
     final regRef = eventRef.collection('registrations').doc(_uid);
+    final eventSnap = await _db.collection('events').doc(eventId).get();
+    final eventTitle = (eventSnap.data()?['title'] ?? 'Evento').toString();
+
 
     await _db.runTransaction((tx) async {
       final eventSnap = await tx.get(eventRef);
@@ -225,6 +244,29 @@ class EventService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     });
+    await _notificationService.createNotification(
+      userId: _uid,
+      title: 'Inscripción exitosa',
+      message: 'Te inscribiste al evento "$eventTitle".',
+    );
+    final data = eventSnap.data()!;
+    final organizerId = data['organizerId'];
+
+    final organizerPrefs =
+    data['organizerNotificationPrefs'] ?? {};
+
+    final wantsAlerts = organizerPrefs['organizerAlerts'] ?? true;
+
+
+    if (wantsAlerts) {
+      await _notificationService.createNotification(
+        userId: organizerId,
+        title: 'Nuevo registro',
+        message: '${me.name} se registró en tu evento "$eventTitle".',
+      );
+    }
+
+
   }
 
   /// ✅ Cancelar registro (transaction)
@@ -250,6 +292,15 @@ class EventService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     });
+    final eventSnap = await _db.collection('events').doc(eventId).get();
+    final eventTitle = (eventSnap.data()?['title'] ?? 'Evento').toString();
+
+    await _notificationService.createNotification(
+      userId: _uid,
+      title: 'Registro cancelado',
+      message: 'Cancelaste tu registro al evento "$eventTitle".',
+    );
+
   }
 
   /// ✅ “Backfill” para registros viejos:
@@ -286,4 +337,44 @@ class EventService {
       // NO tocamos createdAt ni status (se quedan como estén)
     }, SetOptions(merge: true));
   }
+
+  Future<void> sendUpcomingEventReminders() async {
+      final now = DateTime.now();
+      final soon = now.add(const Duration(hours: 24));
+
+      final events = await _db
+          .collection('events')
+          .where('isActive', isEqualTo: true)
+          .where('startAt', isGreaterThan: Timestamp.fromDate(now))
+          .where('startAt', isLessThan: Timestamp.fromDate(soon))
+          .get();
+
+      for (final e in events.docs) {
+        final eventId = e.id;
+        final title = e['title'];
+
+        final regs = await _db
+            .collection('events')
+            .doc(eventId)
+            .collection('registrations')
+            .get();
+
+        for (final r in regs.docs) {
+          final userId = r['userId'];
+
+          final userSnap = await _db.collection('users').doc(userId).get();
+          final prefs = userSnap.data()?['notificationPrefs'] ?? {};
+          final wantsReminders = prefs['reminders'] ?? true;
+
+          if (wantsReminders) {
+            await _notificationService.createNotification(
+              userId: userId,
+              title: 'Evento próximo',
+              message: 'Recuerda que el evento "$title" es pronto.',
+            );
+          }
+        }
+      }
+    }
+
 }
