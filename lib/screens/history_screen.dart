@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/event_service.dart';
+import '../services/user_service.dart';
 import '../models/my_registration_model.dart';
+import '../models/user_model.dart';
+import 'certificates/certificate_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -11,7 +14,9 @@ class HistoryScreen extends StatelessWidget {
     final now = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Historial de eventos')),
+      appBar: AppBar(
+        title: const Text('Historial de eventos'),
+      ),
       body: StreamBuilder<List<MyRegistration>>(
         stream: eventService.streamMyRegistrations(),
         builder: (context, snap) {
@@ -19,9 +24,11 @@ class HistoryScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
+          // 🔹 Filtrar solo eventos TERMINADOS
           final history = snap.data!
-              .where((r) =>
-                  r.eventEndAt != null && r.eventEndAt!.isBefore(now))
+              .where(
+                (r) => r.eventEndAt != null && r.eventEndAt!.isBefore(now),
+              )
               .toList();
 
           if (history.isEmpty) {
@@ -30,23 +37,55 @@ class HistoryScreen extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
-            itemCount: history.length,
-            itemBuilder: (context, i) {
-              final r = history[i];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: ListTile(
-                  leading: const Icon(Icons.history),
-                  title: Text(r.eventTitle ?? 'Evento sin título'),
-                  subtitle: Text(
-                    'Finalizó el ${_fmt(r.eventEndAt!)}',
-                  ),
-                  trailing: const Icon(Icons.picture_as_pdf),
-                  onTap: () {
-                    // 🔜 Aquí irá la constancia
-                  },
-                ),
+          // 🔹 Necesitamos datos del alumno para la constancia
+          return StreamBuilder<AppUser>(
+            stream: UserService().streamMe(),
+            builder: (context, userSnap) {
+              if (!userSnap.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final u = userSnap.data!;
+
+              return ListView.builder(
+                itemCount: history.length,
+                itemBuilder: (context, i) {
+                  final r = history[i];
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.history),
+                      title: Text(
+                        r.eventTitle ?? 'Evento sin título',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        'Finalizó el ${_fmt(r.eventEndAt!)}',
+                      ),
+                      trailing: const Icon(
+                        Icons.picture_as_pdf,
+                        color: Colors.red,
+                      ),
+                      onTap: () {
+                        // 📄 ABRIR CONSTANCIA
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CertificateScreen(
+                              reg: r,
+                              studentName: u.name,
+                              studentEmail: u.email,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               );
             },
           );
@@ -55,6 +94,5 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) =>
-      '${d.day}/${d.month}/${d.year}';
+  String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
 }

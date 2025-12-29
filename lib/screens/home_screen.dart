@@ -13,6 +13,7 @@ import 'events/event_list_screen.dart';
 import 'events/my_events_screen.dart';
 import 'events/create_edit_event_screen.dart';
 import 'events/my_registrations_screen.dart';
+import 'admin/admin_stats_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -93,12 +94,12 @@ NavigationDestination(
               currentUid: u.uid,
               canRegister: false, // ✅ admin NO se registra a eventos
             ),
-            const Center(child: Text('Gestión admin (Sprint 3)')),
+            const AdminStatsScreen(),
             const ProfileScreen(),
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event_available), label: 'Eventos'),
-            NavigationDestination(icon: Icon(Icons.admin_panel_settings), label: 'Gestión'),
+            NavigationDestination(icon: Icon(Icons.query_stats), label: 'Estadísticas'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
           ];
         } else {
