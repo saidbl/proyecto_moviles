@@ -6,7 +6,8 @@ import 'profile_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../services/notification_service.dart';
 import '../models/notification_model.dart';
-
+import 'calendar_screen.dart';
+import 'history_screen.dart';
 // ✅ Sprint 2 screens
 import 'events/event_list_screen.dart';
 import 'events/my_events_screen.dart';
@@ -57,11 +58,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const MyRegistrationsScreen(), // ✅ aqui
             const ProfileScreen(),
+            const CalendarScreen(),   // 📅
+            const HistoryScreen(),    
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event), label: 'Eventos'),
             NavigationDestination(icon: Icon(Icons.check_circle), label: 'Mis registros'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
+            NavigationDestination(
+  icon: Icon(Icons.calendar_today),
+  label: 'Calendario',
+),
+NavigationDestination(
+  icon: Icon(Icons.history),
+  label: 'Historial',
+),
+
           ];
         } else if (isOrganizer) {
           pages = [
