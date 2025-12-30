@@ -377,4 +377,30 @@ class EventService {
       }
     }
 
+    Future<void> markAttendanceByOrganizer({
+  required String eventId,
+  required String userId,
+}) async {
+  final regRef = _db
+      .collection('events')
+      .doc(eventId)
+      .collection('registrations')
+      .doc(userId);
+
+  final snap = await regRef.get();
+
+  if (!snap.exists) {
+    throw Exception('El alumno no está registrado');
+  }
+
+  if (snap.data()?['attended'] == true) {
+    throw Exception('Asistencia ya registrada');
+  }
+
+  await regRef.update({
+    'attended': true,
+    'attendedAt': FieldValue.serverTimestamp(),
+  });
+}
+
 }

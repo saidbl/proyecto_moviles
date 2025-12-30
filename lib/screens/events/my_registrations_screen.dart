@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/my_registration_model.dart';
 import '../../services/event_service.dart';
+import 'my_attendance_qr_screen.dart';
 
 class MyRegistrationsScreen extends StatelessWidget {
   const MyRegistrationsScreen({super.key});
@@ -52,28 +53,53 @@ class MyRegistrationsScreen extends StatelessWidget {
               child: ListTile(
                 title: Text(r.eventTitle ?? 'Evento (${r.eventId})'),
                 subtitle: Text(subtitle.isEmpty ? 'ID: ${r.eventId}' : subtitle),
-                trailing: TextButton.icon(
-                  onPressed: () async {
-                    try {
-                      await service.unregisterFromEvent(r.eventId);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Registro cancelado')),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(e.toString().replaceFirst('Exception: ', '')),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.close),
-                  label: const Text('Cancelar'),
+                trailing: Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    // 🔳 QR DEL ALUMNO
+    TextButton.icon(
+      icon: const Icon(Icons.qr_code),
+      label: const Text('Mi QR'),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MyAttendanceQrScreen(
+              eventId: r.eventId,
+            ),
+          ),
+        );
+      },
+    ),
+
+    // ❌ CANCELAR REGISTRO (LO QUE YA TENÍAS)
+    TextButton.icon(
+      onPressed: () async {
+        try {
+          await service.unregisterFromEvent(r.eventId);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Registro cancelado')),
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  e.toString().replaceFirst('Exception: ', ''),
                 ),
+              ),
+            );
+          }
+        }
+      },
+      icon: const Icon(Icons.close),
+      label: const Text('Cancelar'),
+    ),
+  ],
+),
+
               ),
             );
           },

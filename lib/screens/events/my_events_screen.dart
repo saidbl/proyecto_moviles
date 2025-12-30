@@ -3,6 +3,8 @@ import '../../models/event_model.dart';
 import '../../services/event_service.dart';
 import 'create_edit_event_screen.dart';
 import 'event_detail_screen.dart';
+import 'scan_attendance_screen.dart';
+import 'event_attendees_screen.dart';
 
 class MyEventsScreen extends StatelessWidget {
   final String currentUid;
@@ -49,7 +51,9 @@ class MyEventsScreen extends StatelessWidget {
             return Card(
               child: ListTile(
                 title: Text(e.title),
-                subtitle: Text('${e.category} • ${e.subcategory}\n${e.location}'),
+                subtitle: Text(
+                  '${e.category} • ${e.subcategory}\n${e.location}',
+                ),
                 isThreeLine: true,
                 trailing: PopupMenuButton<String>(
                   onSelected: (v) {
@@ -57,21 +61,74 @@ class MyEventsScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => EventDetailScreen(event: e, canEdit: true),
+                          builder: (_) => EventDetailScreen(
+                            event: e,
+                            canEdit: true,
+                          ),
                         ),
                       );
-                    } else if (v == 'edit') {
+                    } 
+                    else if (v == 'edit') {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => CreateEditEventScreen(initial: e),
+                          builder: (_) =>
+                              CreateEditEventScreen(initial: e),
                         ),
                       );
-                    }
+                    } 
+                    else if (v == 'scan') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ScanAttendanceScreen(
+                            eventId: e.id,
+                          ),
+                        ),
+                      );
+                    }else if (v == 'attendees') {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => EventAttendeesScreen(
+        eventId: e.id,
+        eventTitle: e.title,
+      ),
+    ),
+  );
+}
+
                   },
                   itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'detail', child: Text('Ver detalle')),
-                    PopupMenuItem(value: 'edit', child: Text('Editar')),
+                    PopupMenuItem(
+                      value: 'detail',
+                      child: ListTile(
+                        leading: Icon(Icons.visibility),
+                        title: Text('Ver detalle'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        leading: Icon(Icons.edit),
+                        title: Text('Editar'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'scan',
+                      child: ListTile(
+                        leading: Icon(Icons.qr_code_scanner),
+                        title: Text('Escanear asistencia'),
+                      ),
+                    ),
+                    PopupMenuItem(
+  value: 'attendees',
+  child: ListTile(
+    leading: Icon(Icons.people),
+    title: Text('Ver asistentes'),
+  ),
+),
+
                   ],
                 ),
               ),
