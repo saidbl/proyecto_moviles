@@ -231,7 +231,7 @@ class EventService {
         'userEmail': me.email,
         'createdAt': FieldValue.serverTimestamp(),
         'status': 'registered',
-
+        'attended': false, 
         'eventId': eventId,
         'eventTitle': eventTitle.isEmpty ? '(Sin título)' : eventTitle,
         'eventLocation': eventLocation,

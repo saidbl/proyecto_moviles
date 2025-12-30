@@ -4,6 +4,7 @@ import '../services/user_service.dart';
 import '../models/my_registration_model.dart';
 import '../models/user_model.dart';
 import 'certificates/certificate_screen.dart';
+import 'events/event_comments_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -12,6 +13,7 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final eventService = EventService();
     final now = DateTime.now();
+    
 
     return Scaffold(
       appBar: AppBar(
@@ -23,9 +25,10 @@ class HistoryScreen extends StatelessWidget {
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-
+          
           // 🔹 Filtrar solo eventos TERMINADOS
           final history = snap.data!
+          
               .where(
                 (r) => r.eventEndAt != null && r.eventEndAt!.isBefore(now),
               )
@@ -51,6 +54,7 @@ class HistoryScreen extends StatelessWidget {
                 itemCount: history.length,
                 itemBuilder: (context, i) {
                   final r = history[i];
+                  final canComment = r.attended == true;
 
                   return Card(
                     margin: const EdgeInsets.symmetric(
@@ -58,32 +62,62 @@ class HistoryScreen extends StatelessWidget {
                       vertical: 6,
                     ),
                     child: ListTile(
-                      leading: const Icon(Icons.history),
-                      title: Text(
-                        r.eventTitle ?? 'Evento sin título',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        'Finalizó el ${_fmt(r.eventEndAt!)}',
-                      ),
-                      trailing: const Icon(
-                        Icons.picture_as_pdf,
-                        color: Colors.red,
-                      ),
-                      onTap: () {
-                        // 📄 ABRIR CONSTANCIA
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CertificateScreen(
-                              reg: r,
-                              studentName: u.name,
-                              studentEmail: u.email,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+  leading: const Icon(Icons.history),
+  title: Text(
+    r.eventTitle ?? 'Evento sin título',
+    style: const TextStyle(fontWeight: FontWeight.bold),
+  ),
+  subtitle: Text(
+    'Finalizó el ${_fmt(r.eventEndAt!)}',
+  ),
+
+  trailing: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      // 💬 COMENTARIOS
+      IconButton(
+        tooltip: canComment
+            ? 'Ver / escribir comentarios'
+            : 'Ver comentarios',
+        icon: const Icon(Icons.comment),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EventCommentsScreen(
+                eventId: r.eventId,
+                eventTitle: r.eventTitle ?? 'Evento',
+                canComment: canComment,
+              ),
+            ),
+          );
+        },
+      ),
+
+      // 📄 CONSTANCIA
+      IconButton(
+        tooltip: 'Ver constancia',
+        icon: const Icon(
+          Icons.picture_as_pdf,
+          color: Colors.red,
+        ),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CertificateScreen(
+                reg: r,
+                studentName: u.name,
+                studentEmail: u.email,
+              ),
+            ),
+          );
+        },
+      ),
+    ],
+  ),
+),
+
                   );
                 },
               );

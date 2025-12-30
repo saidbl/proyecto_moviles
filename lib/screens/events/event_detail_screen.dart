@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
+import 'event_comments_screen.dart';
+
 
 class EventDetailScreen extends StatelessWidget {
   final EventModel event; // viene de la lista
@@ -90,6 +92,26 @@ class EventDetailScreen extends StatelessWidget {
                 Text('Organizador: ${e.organizerName}'),
                 const SizedBox(height: 16),
                 Text(e.description),
+                ElevatedButton.icon(
+  icon: const Icon(Icons.comment),
+  label: const Text('Ver comentarios'),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EventCommentsScreen(
+          eventId: e.id,
+          eventTitle: e.title,
+          // 👇 solo el alumno puede comentar si asistió,
+          // aquí dejamos false y las reglas deciden
+          canComment: false,
+        ),
+      ),
+    );
+  },
+),
+const SizedBox(height: 24),
+
                 const SizedBox(height: 24),
 
                 if (!e.isActive)

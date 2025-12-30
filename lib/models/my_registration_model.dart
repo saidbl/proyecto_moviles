@@ -6,6 +6,8 @@ class MyRegistration {
   final String? eventLocation;
   final DateTime? eventStartAt;
   final DateTime? eventEndAt;
+  final bool attended;
+
 
   MyRegistration({
     required this.eventId,
@@ -13,6 +15,7 @@ class MyRegistration {
     this.eventLocation,
     this.eventStartAt,
     this.eventEndAt,
+    required this.attended,
   });
 
   static MyRegistration fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -32,6 +35,7 @@ class MyRegistration {
       eventLocation: d['eventLocation']?.toString(),
       eventStartAt: ts(d['eventStartAt']),
       eventEndAt: ts(d['eventEndAt']),
+      attended: d['attended'] == true,
     );
   }
 

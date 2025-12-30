@@ -14,6 +14,7 @@ import 'events/my_events_screen.dart';
 import 'events/create_edit_event_screen.dart';
 import 'events/my_registrations_screen.dart';
 import 'admin/admin_stats_screen.dart';
+import 'organizer_stats_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -81,11 +82,13 @@ NavigationDestination(
             MyEventsScreen(currentUid: u.uid),
             const CreateEditEventScreen(),
             const ProfileScreen(),
+            const OrganizerStatsScreen(),
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event_note), label: 'Mis eventos'),
             NavigationDestination(icon: Icon(Icons.add_box), label: 'Crear'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
+            NavigationDestination(icon: Icon(Icons.query_stats), label: 'Estadísticas'),
           ];
         } else if (isAdmin) {
           pages = [
