@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // HEADER
                   Text(
-                    'ESCOM Eventos',
+                    'Bienvenido a EventEscom',
                     style: theme.textTheme.headlineLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Plataforma académica de eventos del IPN',
+                    'Plataforma académica de eventos de ESCOM',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: Colors.white.withOpacity(0.9),
                     ),

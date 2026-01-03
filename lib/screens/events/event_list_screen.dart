@@ -22,24 +22,12 @@ class EventListScreen extends StatefulWidget {
 
 class _EventListScreenState extends State<EventListScreen> {
   final service = EventService();
+  final connectivity = ConnectivityService();
 
   String? selectedCategory;
   String? selectedLocation;
   DateTime? selectedDate;
 
-  final connectivity = ConnectivityService();
-
-  bool hasInternet = true;
-
-  @override
-  void initState() {
-    super.initState();
-    connectivity.connectionStream.listen((connected) {
-      if (mounted) {
-        setState(() => hasInternet = connected);
-      }
-    });
-  }
   @override
   Widget build(BuildContext context) {
     final stream = widget.isAdmin
@@ -49,10 +37,14 @@ class _EventListScreenState extends State<EventListScreen> {
     final isTablet = MediaQuery.of(context).size.width >= 700;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Eventos disponibles'),
-        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Eventos disponibles',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
       body: StreamBuilder<List<EventModel>>(
         stream: stream,
@@ -62,9 +54,8 @@ class _EventListScreenState extends State<EventListScreen> {
             return _ErrorView(error: snap.error.toString());
           }
 
-          final allEvents = (snap.data ?? [])
-              .where((e) => !e.hasStarted)
-              .toList();
+          final allEvents =
+              (snap.data ?? []).where((e) => !e.hasStarted).toList();
 
           final categories =
               allEvents.map((e) => e.category).toSet().toList();
@@ -72,8 +63,7 @@ class _EventListScreenState extends State<EventListScreen> {
               allEvents.map((e) => e.location).toSet().toList();
 
           final filteredEvents = allEvents.where((e) {
-            if (selectedCategory != null &&
-                e.category != selectedCategory) {
+            if (selectedCategory != null && e.category != selectedCategory) {
               return false;
             }
             if (selectedLocation != null &&
@@ -91,85 +81,228 @@ class _EventListScreenState extends State<EventListScreen> {
             return true;
           }).toList();
 
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1000),
-              child: Column(
-                children: [
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: _FiltersCard(
+                  categories: categories,
+                  locations: locations,
+                  selectedCategory: selectedCategory,
+                  selectedLocation: selectedLocation,
+                  selectedDate: selectedDate,
+                  onCategoryChanged: (v) =>
+                      setState(() => selectedCategory = v),
+                  onLocationChanged: (v) =>
+                      setState(() => selectedLocation = v),
+                  onDateChanged: (d) =>
+                      setState(() => selectedDate = d),
+                  onClear: () {
+                    setState(() {
+                      selectedCategory = null;
+                      selectedLocation = null;
+                      selectedDate = null;
+                    });
+                  },
+                ),
+              ),
 
-                  /// 🔎 FILTROS
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _FiltersCard(
-                      categories: categories,
-                      locations: locations,
-                      selectedCategory: selectedCategory,
-                      selectedLocation: selectedLocation,
-                      selectedDate: selectedDate,
-                      onCategoryChanged: (v) =>
-                          setState(() => selectedCategory = v),
-                      onLocationChanged: (v) =>
-                          setState(() => selectedLocation = v),
-                      onDateChanged: (d) =>
-                          setState(() => selectedDate = d),
-                      onClear: () {
-                        setState(() {
-                          selectedCategory = null;
-                          selectedLocation = null;
-                          selectedDate = null;
-                        });
-                      },
-                    ),
-                  ),
+              Expanded(
+                child: filteredEvents.isEmpty
+                    ? const _EmptyState()
+                    : ListView.builder(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 24 : 16,
+                          vertical: 8,
+                        ),
+                        itemCount: filteredEvents.length,
+                        itemBuilder: (context, i) {
+                          final e = filteredEvents[i];
+                          final canEdit = widget.isAdmin ||
+                              e.organizerId ==
+                                  widget.currentUid;
 
-                  /// 📋 LISTA
-                  Expanded(
-                    child: filteredEvents.isEmpty
-                        ? const _EmptyState()
-                        : RefreshIndicator(
-                            onRefresh: () async =>
-                                Future.delayed(
-                                    const Duration(milliseconds: 300)),
-                            child: ListView.separated(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isTablet ? 24 : 16,
-                                vertical: 8,
-                              ),
-                              itemCount: filteredEvents.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, i) {
-                                final e = filteredEvents[i];
-                                final canEdit = widget.isAdmin ||
-                                    e.organizerId ==
-                                        widget.currentUid;
-
-                                return _EventCard(
-                                  event: e,
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            EventDetailScreen(
-                                          event: e,
-                                          canEdit: canEdit,
-                                          canRegister:
-                                              widget.canRegister,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: _EventCard(
+                              event: e,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    transitionDuration:
+                                        const Duration(milliseconds: 350),
+                                    pageBuilder: (_, __, ___) =>
+                                        EventDetailScreen(
+                                      event: e,
+                                      canEdit: canEdit,
+                                      canRegister: widget.canRegister,
+                                    ),
+                                    transitionsBuilder:
+                                        (_, animation, __, child) {
+                                      return FadeTransition(
+                                        opacity: animation,
+                                        child: child,
+                                      );
+                                    },
+                                  ),
                                 );
                               },
                             ),
-                          ),
-                  ),
-                ],
+                          );
+                        },
+                      ),
               ),
-            ),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+class _EventCard extends StatefulWidget {
+  final EventModel event;
+  final VoidCallback onTap;
+
+  const _EventCard({
+    required this.event,
+    required this.onTap,
+  });
+
+  @override
+  State<_EventCard> createState() => _EventCardState();
+}
+
+class _EventCardState extends State<_EventCard> {
+  bool pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage =
+        widget.event.imageUrl != null &&
+            widget.event.imageUrl!.isNotEmpty;
+
+    return AnimatedScale(
+      scale: pressed ? 0.98 : 1,
+      duration: const Duration(milliseconds: 120),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => pressed = true),
+        onTapCancel: () => setState(() => pressed = false),
+        onTapUp: (_) {
+          setState(() => pressed = false);
+          widget.onTap();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 30,
+                offset: const Offset(0, 18),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 🖼 IMAGEN / HEADER
+              Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(22),
+                  ),
+                  color: Colors.grey.shade200,
+                  image: hasImage
+                      ? DecorationImage(
+                          image:
+                              NetworkImage(widget.event.imageUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: hasImage
+                    ? Container(
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              const BorderRadius.vertical(
+                            top: Radius.circular(22),
+                          ),
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.55),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        alignment: Alignment.bottomLeft,
+                        child: Text(
+                          widget.event.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+
+              // 📄 CONTENIDO
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!hasImage)
+                      Text(
+                        widget.event.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+
+                    const SizedBox(height: 8),
+
+                    Text(
+                      '${widget.event.category} • ${widget.event.subcategory}',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Icon(Icons.place,
+                            size: 16,
+                            color: Colors.grey.shade700),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            widget.event.location,
+                            style:
+                                const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -200,64 +333,56 @@ class _FiltersCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
-                Icon(Icons.filter_list, color: Colors.indigo),
-                SizedBox(width: 8),
-                Text(
-                  'Filtros',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
-                ),
-              ],
+            const Text(
+              'Filtrar eventos',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             DropdownButtonFormField<String>(
               value: selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Categoría',
-                prefixIcon: Icon(Icons.category),
-              ),
+              decoration:
+                  const InputDecoration(labelText: 'Categoría'),
               items: [
                 const DropdownMenuItem(
                     value: null, child: Text('Todas')),
                 ...categories.map(
-                  (c) => DropdownMenuItem(value: c, child: Text(c)),
+                  (c) =>
+                      DropdownMenuItem(value: c, child: Text(c)),
                 ),
               ],
               onChanged: onCategoryChanged,
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
               value: selectedLocation,
-              decoration: const InputDecoration(
-                labelText: 'Ubicación',
-                prefixIcon: Icon(Icons.place),
-              ),
+              decoration:
+                  const InputDecoration(labelText: 'Ubicación'),
               items: [
                 const DropdownMenuItem(
                     value: null, child: Text('Todas')),
                 ...locations.map(
-                  (l) => DropdownMenuItem(value: l, child: Text(l)),
+                  (l) =>
+                      DropdownMenuItem(value: l, child: Text(l)),
                 ),
               ],
               onChanged: onLocationChanged,
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
             OutlinedButton.icon(
               icon: const Icon(Icons.date_range),
@@ -280,73 +405,14 @@ class _FiltersCard extends StatelessWidget {
             if (selectedCategory != null ||
                 selectedLocation != null ||
                 selectedDate != null)
-              TextButton(
-                onPressed: onClear,
-                child: const Text('Limpiar filtros'),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onClear,
+                  child: const Text('Limpiar filtros'),
+                ),
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-class _EventCard extends StatelessWidget {
-  final EventModel event;
-  final VoidCallback onTap;
-
-  const _EventCard({
-    required this.event,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      event.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  if (!event.isActive)
-                    const Icon(Icons.cancel,
-                        color: Colors.red),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${event.category} • ${event.subcategory}',
-                style:
-                    TextStyle(color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.place,
-                      size: 16, color: Colors.indigo),
-                  const SizedBox(width: 4),
-                  Text(event.location),
-                ],
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -357,34 +423,78 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final theme = Theme.of(context);
+
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'No hay eventos que coincidan con los filtros',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-          ),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.event_busy_rounded,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay eventos disponibles',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Intenta cambiar o limpiar los filtros para ver más resultados.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
 class _ErrorView extends StatelessWidget {
   final String error;
   const _ErrorView({required this.error});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          error,
-          textAlign: TextAlign.center,
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: Colors.red.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Ocurrió un problema',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

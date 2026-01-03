@@ -37,7 +37,10 @@ class EventAttendeesScreen extends StatelessWidget {
             );
           }
 
-          final attended = docs.where((d) => d['attended'] == true).length;
+          final attended = docs.where((doc) {
+            final data = doc.data();
+            return data['attended'] == true;
+          }).length;
           final total = docs.length;
 
           return Column(

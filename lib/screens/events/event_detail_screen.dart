@@ -3,6 +3,11 @@ import '../../models/event_model.dart';
 import '../../services/event_service.dart';
 import 'event_comments_screen.dart';
 
+import 'package:flutter/material.dart';
+import '../../models/event_model.dart';
+import '../../services/event_service.dart';
+import 'event_comments_screen.dart';
+
 class EventDetailScreen extends StatelessWidget {
   final EventModel event;
   final bool canEdit;
@@ -33,123 +38,156 @@ class EventDetailScreen extends StatelessWidget {
         }
 
         final e = snap.data!;
-        final remaining = e.remaining;
         final isTablet = MediaQuery.of(context).size.width >= 700;
+        final hasImage = e.imageUrl != null && e.imageUrl!.isNotEmpty;
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade100,
-          appBar: AppBar(
-            title: const Text('Detalle del evento'),
-            centerTitle: true,
-            actions: [
-              if (canEdit)
-                IconButton(
-                  tooltip: 'Cancelar evento',
-                  icon: const Icon(Icons.cancel_outlined),
-                  onPressed: () async {
-                    await service.cancelEvent(e.id);
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                ),
-            ],
-          ),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: ListView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isTablet ? 32 : 16,
-                  vertical: 20,
-                ),
-                children: [
-                  _Header(event: e),
-                  const SizedBox(height: 20),
-
-                  isTablet
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _GeneralInfoCard(event: e)),
-                            const SizedBox(width: 16),
-                            Expanded(child: _CapacityCard(event: e)),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _GeneralInfoCard(event: e),
-                            const SizedBox(height: 16),
-                            _CapacityCard(event: e),
-                          ],
-                        ),
-
-                  const SizedBox(height: 16),
-                  _DescriptionCard(description: e.description),
-
-                  const SizedBox(height: 16),
-                  _CommentsButton(event: e),
-
-                  const SizedBox(height: 24),
-                  if (e.hasEnded)
-                    const Center(
-                      child: Text(
-                        '⛔ Este evento ya finalizó',
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
+          backgroundColor: const Color(0xFFF5F6FA),
+          body: CustomScrollView(
+            slivers: [
+              /// 🖼 HEADER VISUAL (SOLO IMAGEN)
+              SliverAppBar(
+                expandedHeight: hasImage ? 260 : 140,
+                pinned: true,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                actions: [
+                  if (canEdit)
+                    IconButton(
+                      tooltip: 'Cancelar evento',
+                      icon: const Icon(Icons.cancel_outlined),
+                      onPressed: () async {
+                        await service.cancelEvent(e.id);
+                        if (context.mounted) Navigator.pop(context);
+                      },
                     ),
-
-
-                  if (!e.isActive)
-                    const Center(
-                      child: Text(
-                        '⚠️ Evento cancelado',
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-
-                  if (canRegister && e.isActive && !e.hasStarted) ...[
-                    const SizedBox(height: 20),
-                    _RegisterButton(event: e, service: service),
-                  ],
                 ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: hasImage
+                      ? Image.network(
+                          e.imageUrl!,
+                          fit: BoxFit.cover,
+                        )
+                      : Container(color: Colors.grey.shade200),
+                ),
               ),
-            ),
+
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 900),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTablet ? 32 : 16,
+                        vertical: 20,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// 🏷 CATEGORÍA
+                          Text(
+                            '${e.category} • ${e.subcategory}',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+
+                          /// 🏷 TÍTULO
+                          Text(
+                            e.title,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          isTablet
+                              ? Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                        child:
+                                            _GeneralInfoCard(event: e)),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                        child:
+                                            _CapacityCard(event: e)),
+                                  ],
+                                )
+                              : Column(
+                                  children: [
+                                    _GeneralInfoCard(event: e),
+                                    const SizedBox(height: 16),
+                                    _CapacityCard(event: e),
+                                  ],
+                                ),
+
+                          const SizedBox(height: 16),
+                          _DescriptionCard(description: e.description),
+
+                          /// 💬 COMENTARIOS — SOLO ORGANIZADOR
+                          if (canEdit) ...[
+                            const SizedBox(height: 16),
+                            _CommentsButton(event: e),
+                          ],
+
+                          const SizedBox(height: 24),
+
+                          if (e.hasEnded)
+                            const _StatusMessage(
+                              icon: Icons.event_busy,
+                              text: 'Este evento ya finalizó',
+                              color: Colors.red,
+                            ),
+
+                          if (!e.isActive)
+                            const _StatusMessage(
+                              icon: Icons.cancel,
+                              text: 'Evento cancelado',
+                              color: Colors.red,
+                            ),
+
+                          /// 📝 REGISTRO — SOLO ALUMNO
+                          if (!canEdit &&
+                              canRegister &&
+                              e.isActive &&
+                              !e.hasStarted) ...[
+                            const SizedBox(height: 20),
+                            _RegisterButton(
+                                event: e, service: service),
+                          ],
+
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 }
-class _Header extends StatelessWidget {
+class _TagLine extends StatelessWidget {
   final EventModel event;
-  const _Header({required this.event});
+  const _TagLine({required this.event});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          event.title,
-          style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            color: Colors.indigo,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '${event.category} • ${event.subcategory}',
-          style: TextStyle(color: Colors.grey.shade700),
-        ),
-      ],
+    return Text(
+      '${event.category} • ${event.subcategory}',
+      style: TextStyle(
+        color: Colors.grey.shade700,
+        fontSize: 14,
+      ),
     );
   }
 }
@@ -182,13 +220,13 @@ class _CapacityCard extends StatelessWidget {
       title: 'Cupo',
       children: [
         _InfoRow(Icons.groups, 'Capacidad', '${event.capacity}'),
-        _InfoRow(Icons.check_circle, 'Registrados', '${event.registrationsCount}'),
+        _InfoRow(
+            Icons.check_circle, 'Registrados',
+            '${event.registrationsCount}'),
         Row(
           children: [
-            Icon(
-              Icons.event_seat,
-              color: remaining == 0 ? Colors.red : Colors.green,
-            ),
+            Icon(Icons.event_seat,
+                color: remaining == 0 ? Colors.red : Colors.green),
             const SizedBox(width: 8),
             Text(
               'Disponibles: $remaining',
@@ -212,7 +250,10 @@ class _DescriptionCard extends StatelessWidget {
     return _InfoCard(
       title: 'Descripción',
       children: [
-        Text(description),
+        Text(
+          description,
+          style: const TextStyle(height: 1.5),
+        ),
       ],
     );
   }
@@ -223,15 +264,9 @@ class _CommentsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
+    return OutlinedButton.icon(
       icon: const Icon(Icons.comment),
       label: const Text('Ver comentarios'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.indigo.shade50,
-        foregroundColor: Colors.indigo,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
       onPressed: () {
         Navigator.push(
           context,
@@ -260,41 +295,72 @@ class _RegisterButton extends StatelessWidget {
       initialData: false,
       builder: (context, snap) {
         final registered = snap.data == true;
-        if (registered) {
-          Future.microtask(
-            () => service.ensureRegistrationProjectionIfNeeded(event),
-          );
-        }
-
         final disabled = event.isFull && !registered;
-        
-        return ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor:
-                registered ? Colors.redAccent : Colors.indigo,
-          ),
-          onPressed: disabled
-              ? null
-              : () async {
-                  if (registered) {
-                    await service.unregisterFromEvent(event.id);
-                  } else {
-                    await service.registerToEvent(event.id);
-                  }
-                },
-          icon: Icon(
-            registered ? Icons.close : Icons.check,
-            color: Colors.white,
-          ),
-          label: Text(
-            registered
-                ? 'Cancelar registro'
-                : (event.isFull ? 'Evento lleno' : 'Registrarme'),
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor:
+                  registered ? Colors.redAccent : Colors.indigo,
+            ),
+            onPressed: disabled
+                ? null
+                : () async {
+                    if (registered) {
+                      await service.unregisterFromEvent(event.id);
+                    } else {
+                      await service.registerToEvent(event.id);
+                    }
+                  },
+            icon: Icon(
+              registered ? Icons.close : Icons.check,
+              color: Colors.white,
+            ),
+            label: Text(
+              registered
+                  ? 'Cancelar registro'
+                  : (event.isFull
+                      ? 'Evento lleno'
+                      : 'Registrarme'),
+              style:
+                  const TextStyle(color: Colors.white, fontSize: 16),
+            ),
           ),
         );
       },
+    );
+  }
+}
+class _StatusMessage extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  const _StatusMessage({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -307,24 +373,21 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.indigo,
-              ),
-            ),
+            Text(title,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             ...children.map(
               (c) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: c,
               ),
             ),
@@ -334,7 +397,6 @@ class _InfoCard extends StatelessWidget {
     );
   }
 }
-
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -346,12 +408,10 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.indigo),
+        Icon(icon, size: 18, color: Colors.grey.shade700),
         const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+        Text('$label: ',
+            style: const TextStyle(fontWeight: FontWeight.w600)),
         Expanded(child: Text(value)),
       ],
     );
@@ -368,10 +428,7 @@ class _ErrorView extends StatelessWidget {
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            error,
-            textAlign: TextAlign.center,
-          ),
+          child: Text(error, textAlign: TextAlign.center),
         ),
       ),
     );
