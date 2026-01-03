@@ -4,7 +4,8 @@ import '../models/event_model.dart';
 import '../models/my_registration_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
-
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class EventService {
   final _db = FirebaseFirestore.instance;
@@ -117,10 +118,11 @@ class EventService {
     required DateTime startAt,
     required DateTime endAt,
     required int capacity,
+    File? imageFile,
   }) async {
     final me = await _userService.streamMe().first;
 
-    await _db.collection('events').add({
+    final doc =await _db.collection('events').add({
       'title': title.trim(),
       'description': description.trim(),
       'category': category.trim(),
@@ -137,6 +139,14 @@ class EventService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    if (imageFile != null) {
+    final url = await _uploadEventImage(
+      file: imageFile,
+      eventId: doc.id,
+    );
+
+    await doc.update({'imageUrl': url});
+  }
     await _notificationService.createNotification(
       userId: _uid,
       title: 'Evento creado',
@@ -155,18 +165,29 @@ class EventService {
     required DateTime startAt,
     required DateTime endAt,
     required int capacity,
+    File? imageFile,
   }) async {
-    await _db.collection('events').doc(eventId).update({
-      'title': title.trim(),
-      'description': description.trim(),
-      'category': category.trim(),
-      'subcategory': subcategory.trim(),
-      'location': location.trim(),
-      'startAt': Timestamp.fromDate(startAt),
-      'endAt': Timestamp.fromDate(endAt),
-      'capacity': capacity,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    final data = {
+    'title': title.trim(),
+    'description': description.trim(),
+    'category': category.trim(),
+    'subcategory': subcategory.trim(),
+    'location': location.trim(),
+    'startAt': Timestamp.fromDate(startAt),
+    'endAt': Timestamp.fromDate(endAt),
+    'capacity': capacity,
+    'updatedAt': FieldValue.serverTimestamp(),
+  };
+
+  if (imageFile != null) {
+    final url = await _uploadEventImage(
+      file: imageFile,
+      eventId: eventId,
+    );
+    data['imageUrl'] = url;
+  }
+
+  await _db.collection('events').doc(eventId).update(data);
   }
 
   Future<void> cancelEvent(String eventId) async {
@@ -402,5 +423,20 @@ class EventService {
     'attendedAt': FieldValue.serverTimestamp(),
   });
 }
+
+Future<String> _uploadEventImage({
+  required File file,
+  required String eventId,
+}) async {
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child('events')
+      .child(eventId)
+      .child('cover.jpg');
+
+  await ref.putFile(file);
+  return await ref.getDownloadURL();
+}
+
 
 }

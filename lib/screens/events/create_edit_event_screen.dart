@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../../constants/event_catalog.dart';
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
@@ -19,6 +23,9 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
   final descCtrl = TextEditingController();
   final locationCtrl = TextEditingController();
   final capacityCtrl = TextEditingController(text: '50');
+
+  final picker = ImagePicker();
+  File? imageFile;
 
   String? category;
   String? subcategory;
@@ -52,6 +59,16 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
     locationCtrl.dispose();
     capacityCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> pickImage() async {
+    final x = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (x != null) {
+      setState(() => imageFile = File(x.path));
+    }
   }
 
   Future<DateTime?> pickDateTime(DateTime? current) async {
@@ -94,13 +111,13 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
         throw Exception('Selecciona categoría y tipo de evento.');
       }
       if (startAt == null || endAt == null) {
-        throw Exception('Selecciona fecha/hora de inicio y fin.');
+        throw Exception('Selecciona fecha y hora.');
       }
       if (!endAt!.isAfter(startAt!)) {
         throw Exception('La hora fin debe ser posterior a la hora inicio.');
       }
       if (cap <= 0) {
-        throw Exception('El cupo máximo debe ser mayor a 0.');
+        throw Exception('El cupo debe ser mayor a 0.');
       }
 
       if (widget.initial == null) {
@@ -113,6 +130,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
           startAt: startAt!,
           endAt: endAt!,
           capacity: cap,
+          imageFile: imageFile,
         );
       } else {
         await service.updateEvent(
@@ -125,6 +143,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
           startAt: startAt!,
           endAt: endAt!,
           capacity: cap,
+          imageFile: imageFile,
         );
       }
 
@@ -152,6 +171,39 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
+            // ---------- IMAGEN ----------
+            GestureDetector(
+              onTap: loading ? null : pickImage,
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey),
+                  image: imageFile != null
+                      ? DecorationImage(
+                          image: FileImage(imageFile!),
+                          fit: BoxFit.cover,
+                        )
+                      : widget.initial?.imageUrl != null
+                          ? DecorationImage(
+                              image:
+                                  NetworkImage(widget.initial!.imageUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                ),
+                child: imageFile == null &&
+                        widget.initial?.imageUrl == null
+                    ? const Center(
+                        child: Text('Agregar imagen'),
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ---------- FORM ----------
             TextField(
               controller: titleCtrl,
               decoration: const InputDecoration(
@@ -176,7 +228,10 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                 border: OutlineInputBorder(),
               ),
               items: categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .map((c) => DropdownMenuItem(
+                        value: c,
+                        child: Text(c),
+                      ))
                   .toList(),
               onChanged: (v) => setState(() {
                 category = v;
@@ -191,9 +246,13 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                 border: OutlineInputBorder(),
               ),
               items: subcats
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(s),
+                      ))
                   .toList(),
-              onChanged: category == null ? null : (v) => setState(() => subcategory = v),
+              onChanged:
+                  category == null ? null : (v) => setState(() => subcategory = v),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -224,7 +283,9 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                             if (dt != null) setState(() => startAt = dt);
                           },
                     child: Text(
-                      startAt == null ? 'Inicio' : 'Inicio: ${startAt!.toString()}',
+                      startAt == null
+                          ? 'Inicio'
+                          : 'Inicio: ${startAt!.toString()}',
                     ),
                   ),
                 ),
@@ -238,7 +299,9 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                             if (dt != null) setState(() => endAt = dt);
                           },
                     child: Text(
-                      endAt == null ? 'Fin' : 'Fin: ${endAt!.toString()}',
+                      endAt == null
+                          ? 'Fin'
+                          : 'Fin: ${endAt!.toString()}',
                     ),
                   ),
                 ),
@@ -248,7 +311,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
               const SizedBox(height: 12),
               Text(error!, style: const TextStyle(color: Colors.red)),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

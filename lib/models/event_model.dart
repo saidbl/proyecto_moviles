@@ -22,6 +22,8 @@ class EventModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  final String? imageUrl;
+
   EventModel({
     required this.id,
     required this.title,
@@ -38,6 +40,7 @@ class EventModel {
     required this.organizerName,
     this.createdAt,
     this.updatedAt,
+    this.imageUrl,
   });
 
   // ✅ Helpers
@@ -94,6 +97,7 @@ class EventModel {
       registrationsCount: parseInt(d['registrationsCount']),
       organizerId: (d['organizerId'] ?? '').toString(),
       organizerName: (d['organizerName'] ?? '').toString(),
+      imageUrl: d['imageUrl'],
       createdAt:
           d['createdAt'] is Timestamp ? (d['createdAt'] as Timestamp).toDate() : null,
       updatedAt:
