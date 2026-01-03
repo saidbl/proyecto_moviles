@@ -44,6 +44,9 @@ class EventModel {
   int get remaining => (capacity - registrationsCount).clamp(0, capacity);
   bool get isFull => remaining <= 0;
 
+  bool get hasStarted => DateTime.now().isAfter(startAt);
+  bool get hasEnded => DateTime.now().isAfter(endAt);
+
   Map<String, dynamic> toMap() => {
         'title': title,
         'description': description,
