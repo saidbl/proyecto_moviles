@@ -64,11 +64,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final file = File(picked.path);
       final ref = FirebaseStorage.instance
-    .ref()
-    .child('profile_photos')
-    .child(u.uid)
-    .child('profile.jpg');
-
+          .ref()
+          .child('profile_photos')
+          .child(u.uid)
+          .child('profile.jpg');
 
       await ref.putFile(file);
       final url = await ref.getDownloadURL();
@@ -123,6 +122,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return StreamBuilder<AppUser>(
       stream: userService.streamMe(),
       builder: (context, snap) {
@@ -151,86 +152,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade100,
-          appBar: AppBar(
-            title: const Text('Mi perfil'),
-            centerTitle: true,
-          ),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
+          backgroundColor: const Color(0xFFF5F6FA),
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      /// 👤 HEADER PERFIL
+                      _ProfileHeader(
+                        user: u,
+                        loading: loading,
+                        onChangePhoto: () => _pickAndUploadPhoto(u),
+                      ),
 
-                    /// 🧑 PERFIL
-                    _ProfileHeader(
-                      user: u,
-                      loading: loading,
-                      onChangePhoto: () => _pickAndUploadPhoto(u),
-                    ),
+                      const SizedBox(height: 28),
 
-                    const SizedBox(height: 24),
-
-                    /// 📄 INFORMACIÓN
-                    _SectionCard(
-                      title: 'Información personal',
-                      children: [
-                        _InfoLine('Correo', u.email),
-                        _InfoLine('Rol', u.role),
-                        const SizedBox(height: 16),
-                        CustomTextField(
-                          label: 'Nombre',
-                          controller: nameCtrl,
-                          icon: Icons.person,
-                        ),
-                      ],
-                    ),
-
-                    if (isStudent) ...[
-                      const SizedBox(height: 20),
+                      /// 📄 INFO PERSONAL
                       _SectionCard(
-                        title: 'Preferencias del estudiante',
+                        title: 'Información personal',
                         children: [
+                          _InfoLine('Correo', u.email),
+                          _InfoLine('Rol', u.role),
+                          const SizedBox(height: 16),
                           CustomTextField(
-                            label: 'Intereses (separados por comas)',
-                            controller: interestsCtrl,
-                            icon: Icons.interests,
-                          ),
-                          const SizedBox(height: 12),
-                          SwitchListTile(
-                            title: const Text('Recordatorios'),
-                            value: reminders,
-                            onChanged: (v) =>
-                                setState(() => reminders = v),
-                          ),
-                          SwitchListTile(
-                            title:
-                                const Text('Avisos al organizador'),
-                            value: organizerAlerts,
-                            onChanged: (v) =>
-                                setState(() => organizerAlerts = v),
+                            label: 'Nombre',
+                            controller: nameCtrl,
+                            icon: Icons.person_outline,
                           ),
                         ],
                       ),
-                    ],
 
-                    if (error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        error!,
-                        style: const TextStyle(color: Colors.red),
+                      if (isStudent) ...[
+                        const SizedBox(height: 20),
+                        _SectionCard(
+                          title: 'Preferencias',
+                          children: [
+                            CustomTextField(
+                              label:
+                                  'Intereses (separados por comas)',
+                              controller: interestsCtrl,
+                              icon: Icons.interests_outlined,
+                            ),
+                            const SizedBox(height: 12),
+                            _SwitchTile(
+                              title: 'Recordatorios',
+                              value: reminders,
+                              onChanged: (v) =>
+                                  setState(() => reminders = v),
+                            ),
+                            _SwitchTile(
+                              title: 'Avisos del organizador',
+                              value: organizerAlerts,
+                              onChanged: (v) =>
+                                  setState(
+                                      () => organizerAlerts = v),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      if (error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          error!,
+                          style: TextStyle(
+                              color: Colors.red.shade700),
+                        ),
+                      ],
+
+                      const SizedBox(height: 28),
+
+                      PrimaryButton(
+                        text: 'Guardar cambios',
+                        loading: loading,
+                        onPressed: () => _save(u),
                       ),
                     ],
-
-                    const SizedBox(height: 24),
-                    PrimaryButton(
-                      text: 'Guardar cambios',
-                      loading: loading,
-                      onPressed: () => _save(u),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -255,31 +256,63 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        CircleAvatar(
-          radius: 52,
-          backgroundColor: Colors.indigo.shade200,
-          backgroundImage:
-              (user.photoUrl != null && user.photoUrl!.isNotEmpty)
-                  ? NetworkImage(user.photoUrl!)
+        Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            CircleAvatar(
+              radius: 56,
+              backgroundColor: Colors.indigo.shade200,
+              backgroundImage:
+                  (user.photoUrl != null &&
+                          user.photoUrl!.isNotEmpty)
+                      ? NetworkImage(user.photoUrl!)
+                      : null,
+              child: (user.photoUrl == null ||
+                      user.photoUrl!.isEmpty)
+                  ? Text(
+                      user.name.isNotEmpty
+                          ? user.name[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    )
                   : null,
-          child: (user.photoUrl == null || user.photoUrl!.isEmpty)
-              ? Text(
-                  user.name.isNotEmpty
-                      ? user.name[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
+            ),
+            Material(
+              shape: const CircleBorder(),
+              color: Colors.indigo,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: loading ? null : onChangePhoto,
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.camera_alt,
                     color: Colors.white,
+                    size: 20,
                   ),
-                )
-              : null,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        TextButton.icon(
-          onPressed: loading ? null : onChangePhoto,
-          icon: const Icon(Icons.photo_camera),
-          label: const Text('Cambiar foto'),
+        const SizedBox(height: 16),
+        Text(
+          user.name,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          user.email,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+          ),
         ),
       ],
     );
@@ -296,28 +329,54 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 25,
+            offset: const Offset(0, 16),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.indigo,
-              ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
             ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
       ),
+    );
+  }
+}
+class _SwitchTile extends StatelessWidget {
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchTile({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title),
+      value: value,
+      onChanged: onChanged,
     );
   }
 }
@@ -340,7 +399,8 @@ class _InfoLine extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(color: Colors.grey.shade700),
+              style:
+                  TextStyle(color: Colors.grey.shade700),
             ),
           ),
         ],

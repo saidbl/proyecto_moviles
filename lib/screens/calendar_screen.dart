@@ -11,7 +11,15 @@ class CalendarScreen extends StatelessWidget {
     final now = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi calendario')),
+      backgroundColor: const Color(0xFFF5F6FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        title: const Text(
+          'Mi calendario',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
       body: StreamBuilder<List<MyRegistration>>(
         stream: eventService.streamMyRegistrations(),
         builder: (context, snap) {
@@ -27,9 +35,7 @@ class CalendarScreen extends StatelessWidget {
               .toList();
 
           if (upcoming.isEmpty) {
-            return const Center(
-              child: Text('No tienes eventos próximos'),
-            );
+            return const _EmptyCalendarState();
           }
 
           // 🔹 Ordenar por fecha
@@ -48,17 +54,15 @@ class CalendarScreen extends StatelessWidget {
           final days = grouped.keys.toList()..sort();
 
           return ListView.builder(
+            padding: const EdgeInsets.only(bottom: 24),
             itemCount: days.length,
             itemBuilder: (context, i) {
               final day = days[i];
               final events = grouped[day]!;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _DayHeader(date: day),
-                  ...events.map((r) => _EventTile(reg: r)),
-                ],
+              return _DaySection(
+                date: day,
+                events: events,
               );
             },
           );
@@ -71,7 +75,35 @@ class CalendarScreen extends StatelessWidget {
   DateTime _onlyDate(DateTime d) =>
       DateTime(d.year, d.month, d.day);
 }
+class _DaySection extends StatelessWidget {
+  final DateTime date;
+  final List<MyRegistration> events;
 
+  const _DaySection({
+    required this.date,
+    required this.events,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DayHeader(date: date),
+          const SizedBox(height: 12),
+          ...events.map(
+            (r) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _EventCard(reg: r),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _DayHeader extends StatelessWidget {
   final DateTime date;
 
@@ -92,40 +124,122 @@ class _DayHeader extends StatelessWidget {
       label = '${date.day}/${date.month}/${date.year}';
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: date == today
-              ? Theme.of(context).colorScheme.primary
-              : Colors.black87,
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 28,
+          decoration: BoxDecoration(
+            color: date == today
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade400,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
-      ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: date == today
+                ? Theme.of(context).colorScheme.primary
+                : Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 }
-class _EventTile extends StatelessWidget {
+class _EventCard extends StatefulWidget {
   final MyRegistration reg;
 
-  const _EventTile({required this.reg});
+  const _EventCard({required this.reg});
+
+  @override
+  State<_EventCard> createState() => _EventCardState();
+}
+
+class _EventCardState extends State<_EventCard> {
+  bool pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    final start = reg.eventStartAt!;
+    final start = widget.reg.eventStartAt!;
+    final theme = Theme.of(context);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ListTile(
-        leading: const Icon(Icons.event),
-        title: Text(
-          reg.eventTitle ?? 'Evento sin título',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          'Hora: ${_fmtTime(start)}',
+    return AnimatedScale(
+      scale: pressed ? 0.97 : 1,
+      duration: const Duration(milliseconds: 120),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => pressed = true),
+        onTapCancel: () => setState(() => pressed = false),
+        onTapUp: (_) => setState(() => pressed = false),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 24,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              /// 🕒 HORA
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _fmtTime(start),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              /// 📄 INFO
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.reg.eventTitle ??
+                          'Evento sin título',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.reg.eventLocation ?? '',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -133,4 +247,43 @@ class _EventTile extends StatelessWidget {
 
   String _fmtTime(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+class _EmptyCalendarState extends StatelessWidget {
+  const _EmptyCalendarState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_month_outlined,
+              size: 72,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No tienes eventos próximos',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Cuando te registres en un evento futuro, aparecerá aquí.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
