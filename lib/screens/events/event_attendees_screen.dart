@@ -19,8 +19,14 @@ class EventAttendeesScreen extends StatelessWidget {
         .collection('registrations');
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: Text('Asistentes · $eventTitle'),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        title: Text(
+          'Asistentes · $eventTitle',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: regsRef.snapshots(),
@@ -32,9 +38,7 @@ class EventAttendeesScreen extends StatelessWidget {
           final docs = snap.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text('Aún no hay registros para este evento'),
-            );
+            return const _EmptyAttendeesState();
           }
 
           final attended = docs.where((doc) {
@@ -45,39 +49,48 @@ class EventAttendeesScreen extends StatelessWidget {
 
           return Column(
             children: [
-              // 📊 RESUMEN
+              /// 📊 RESUMEN
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _SummaryChip(
-                      label: 'Total',
-                      value: total.toString(),
-                      color: Colors.blue,
+                    Expanded(
+                      child: _SummaryCard(
+                        label: 'Total',
+                        value: total.toString(),
+                        icon: Icons.people,
+                        color: Colors.blueGrey,
+                      ),
                     ),
-                    _SummaryChip(
-                      label: 'Asistieron',
-                      value: attended.toString(),
-                      color: Colors.green,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        label: 'Asistieron',
+                        value: attended.toString(),
+                        icon: Icons.check_circle,
+                        color: Colors.green,
+                      ),
                     ),
-                    _SummaryChip(
-                      label: 'No asistieron',
-                      value: (total - attended).toString(),
-                      color: Colors.red,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        label: 'No asistieron',
+                        value: (total - attended).toString(),
+                        icon: Icons.cancel,
+                        color: Colors.redAccent,
+                      ),
                     ),
                   ],
                 ),
               ),
 
-              const Divider(),
-
-              // 👥 LISTA
+              /// 👥 LISTA
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: 12),
                   itemBuilder: (context, i) {
                     final d = docs[i].data();
 
@@ -85,30 +98,10 @@ class EventAttendeesScreen extends StatelessWidget {
                     final email = d['userEmail'] ?? '';
                     final attended = d['attended'] == true;
 
-                    return Card(
-                      child: ListTile(
-                        leading: Icon(
-                          attended ? Icons.check_circle : Icons.cancel,
-                          color: attended ? Colors.green : Colors.red,
-                        ),
-                        title: Text(name),
-                        subtitle: Text(email),
-                        trailing: attended
-                            ? const Text(
-                                'Asistió',
-                                style: TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : const Text(
-                                'No asistió',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                      ),
+                    return _AttendeeTile(
+                      name: name,
+                      email: email,
+                      attended: attended,
                     );
                   },
                 ),
@@ -120,26 +113,147 @@ class EventAttendeesScreen extends StatelessWidget {
     );
   }
 }
-
-class _SummaryChip extends StatelessWidget {
+class _SummaryCard extends StatelessWidget {
   final String label;
   final String value;
+  final IconData icon;
   final Color color;
 
-  const _SummaryChip({
+  const _SummaryCard({
     required this.label,
     required this.value,
+    required this.icon,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      label: Text(
-        '$label: $value',
-        style: const TextStyle(color: Colors.white),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(18),
       ),
-      backgroundColor: color,
+      child: Column(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+class _AttendeeTile extends StatelessWidget {
+  final String name;
+  final String email;
+  final bool attended;
+
+  const _AttendeeTile({
+    required this.name,
+    required this.email,
+    required this.attended,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: attended
+                ? Colors.green.withOpacity(0.15)
+                : Colors.red.withOpacity(0.15),
+          ),
+          child: Icon(
+            attended ? Icons.check : Icons.close,
+            color: attended ? Colors.green : Colors.red,
+          ),
+        ),
+        title: Text(
+          name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          email,
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+        trailing: Text(
+          attended ? 'Asistió' : 'No asistió',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: attended ? Colors.green : Colors.red,
+          ),
+        ),
+      ),
+    );
+  }
+}
+class _EmptyAttendeesState extends StatelessWidget {
+  const _EmptyAttendeesState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 72,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sin asistentes aún',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Los registros aparecerán aquí conforme los alumnos se inscriban.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

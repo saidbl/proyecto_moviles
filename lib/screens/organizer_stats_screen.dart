@@ -11,11 +11,21 @@ class OrganizerStatsScreen extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final db = FirebaseFirestore.instance;
 
-    final eventsStream =
-        db.collection('events').where('organizerId', isEqualTo: uid).snapshots();
+    final eventsStream = db
+        .collection('events')
+        .where('organizerId', isEqualTo: uid)
+        .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Estadísticas generales')),
+      backgroundColor: const Color(0xFFF5F6FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        title: const Text(
+          'Estadísticas generales',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: eventsStream,
         builder: (context, snap) {
@@ -26,37 +36,25 @@ class OrganizerStatsScreen extends StatelessWidget {
           final events = snap.data!.docs;
 
           if (events.isEmpty) {
-            return const Center(
-              child: Text('Aún no tienes eventos para analizar'),
-            );
+            return const _EmptyStatsState();
           }
 
           int totalEvents = events.length;
           int totalRegs = 0;
-          int attended = 0;
 
           final Map<String, int> categoryCount = {};
-          final Map<int, int> monthCount = {};
 
           for (final e in events) {
             final data = e.data();
             final cat = data['category'] ?? 'Otros';
             categoryCount[cat] = (categoryCount[cat] ?? 0) + 1;
-
-            final start = (data['startAt'] as Timestamp?)?.toDate();
-            if (start != null) {
-              monthCount[start.month] = (monthCount[start.month] ?? 0) + 1;
-            }
-
             totalRegs += (data['registrationsCount'] ?? 0) as int;
           }
 
-          // 🔁 Contar asistencias reales
           return FutureBuilder<int>(
             future: _countAttended(uid),
             builder: (context, attSnap) {
-              attended = attSnap.data ?? 0;
-
+              final attended = attSnap.data ?? 0;
               final attendanceRate = totalRegs == 0
                   ? 0
                   : ((attended / totalRegs) * 100).round();
@@ -64,61 +62,139 @@ class OrganizerStatsScreen extends StatelessWidget {
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // 📊 KPIs
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
+                  /// 📊 KPIs
+                  GridView.count(
+                    crossAxisCount:
+                        MediaQuery.of(context).size.width > 600 ? 4 : 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
                     children: [
-                      _KpiCard('Eventos', totalEvents, Icons.event),
-                      _KpiCard('Registros', totalRegs, Icons.people),
-                      _KpiCard('Asistencias', attended, Icons.check_circle),
-                      _KpiCard('% Asistencia', attendanceRate, Icons.trending_up),
+                      _KpiCard(
+                        label: 'Eventos',
+                        value: totalEvents,
+                        icon: Icons.event,
+                        color: Colors.indigo,
+                      ),
+                      _KpiCard(
+                        label: 'Registros',
+                        value: totalRegs,
+                        icon: Icons.people,
+                        color: Colors.blueGrey,
+                      ),
+                      _KpiCard(
+                        label: 'Asistencias',
+                        value: attended,
+                        icon: Icons.check_circle,
+                        color: Colors.green,
+                      ),
+                      _KpiCard(
+                        label: '% Asistencia',
+                        value: attendanceRate,
+                        icon: Icons.trending_up,
+                        color: Colors.deepPurple,
+                        suffix: '%',
+                      ),
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
 
-                  // 🥧 Pie asistencia
-                  const Text('Asistencia global',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  /// 🥧 ASISTENCIA
+                  const _SectionTitle('Asistencia global'),
                   SizedBox(
-                    height: 200,
-                    child: PieChart(
-                      PieChartData(sections: [
-                        PieChartSectionData(
-                          value: attended.toDouble(),
-                          color: Colors.green,
-                          title: 'Asistió',
+                    height: 220,
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: PieChart(
+                          PieChartData(
+                            centerSpaceRadius: 48,
+                            sections: [
+                              PieChartSectionData(
+                                value: attended.toDouble(),
+                                color: Colors.green,
+                                title: 'Asistió',
+                                radius: 60,
+                                titleStyle:
+                                    const TextStyle(color: Colors.white),
+                              ),
+                              PieChartSectionData(
+                                value:
+                                    (totalRegs - attended).toDouble(),
+                                color: Colors.redAccent,
+                                title: 'No asistió',
+                                radius: 60,
+                                titleStyle:
+                                    const TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
                         ),
-                        PieChartSectionData(
-                          value: (totalRegs - attended).toDouble(),
-                          color: Colors.red,
-                          title: 'No asistió',
-                        ),
-                      ]),
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
 
-                  // 📊 Categorías
-                  const Text('Eventos por categoría',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  /// 📊 CATEGORÍAS
+                  const _SectionTitle('Eventos por categoría'),
                   SizedBox(
-                    height: 220,
-                    child: BarChart(
-                      BarChartData(
-                        barGroups: categoryCount.entries.map((e) {
-                          return BarChartGroupData(
-                            x: categoryCount.keys.toList().indexOf(e.key),
-                            barRods: [
-                              BarChartRodData(
-                                toY: e.value.toDouble(),
-                                color: Colors.blue,
+                    height: 260,
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            titlesData: FlTitlesData(
+                              leftTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: true),
                               ),
-                            ],
-                          );
-                        }).toList(),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, _) {
+                                    final key = categoryCount.keys
+                                        .elementAt(value.toInt());
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        key,
+                                        style:
+                                            const TextStyle(fontSize: 10),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            barGroups: categoryCount.entries.map((e) {
+                              final index = categoryCount.keys
+                                  .toList()
+                                  .indexOf(e.key);
+                              return BarChartGroupData(
+                                x: index,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: e.value.toDouble(),
+                                    borderRadius:
+                                        BorderRadius.circular(6),
+                                    color: Colors.indigo,
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -154,26 +230,104 @@ class OrganizerStatsScreen extends StatelessWidget {
     return count;
   }
 }
-
 class _KpiCard extends StatelessWidget {
   final String label;
   final int value;
   final IconData icon;
+  final Color color;
+  final String suffix;
 
-  const _KpiCard(this.label, this.value, this.icon);
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.suffix = '',
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: MediaQuery.of(context).size.width / 2 - 24,
-      child: Card(
-        child: ListTile(
-          leading: Icon(icon),
-          title: Text(label),
-          trailing: Text(
-            value.toString(),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
           ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color),
+          const Spacer(),
+          Text(
+            '$value$suffix',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 16,
+        ),
+      ),
+    );
+  }
+}
+class _EmptyStatsState extends StatelessWidget {
+  const _EmptyStatsState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.bar_chart_outlined,
+              size: 72,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Sin datos para mostrar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Crea eventos para empezar a ver estadísticas.',
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
