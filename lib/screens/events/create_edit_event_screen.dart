@@ -8,12 +8,16 @@ import '../../services/event_service.dart';
 
 class CreateEditEventScreen extends StatefulWidget {
   final EventModel? initial;
+  final VoidCallback? onEventSaved; 
 
-  const CreateEditEventScreen({super.key, this.initial});
+  const CreateEditEventScreen({
+    super.key, 
+    this.initial, 
+    this.onEventSaved,
+  });
 
   @override
-  State<CreateEditEventScreen> createState() =>
-      _CreateEditEventScreenState();
+  State<CreateEditEventScreen> createState() => _CreateEditEventScreenState();
 }
 
 class _CreateEditEventScreenState
@@ -99,37 +103,70 @@ class _CreateEditEventScreenState
     );
   }
 
-  Future<void> save() async {
+  void _clearForm() {
+    titleCtrl.clear();
+    descCtrl.clear();
+    locationCtrl.clear();
+    capacityCtrl.text = '50';
     setState(() {
-      loading = true;
-      error = null;
+      imageFile = null;
+      startAt = null;
+      endAt = null;
+      category = null;
+      subcategory = null;
     });
+  }
+
+  Future<void> save() async {
+    // 1. Ocultamos el teclado antes de hacer nada
+    FocusScope.of(context).unfocus();
+
+    // 2. Validaciones básicas
+    final title = titleCtrl.text.trim();
+    final desc = descCtrl.text.trim();
+    final loc = locationCtrl.text.trim();
+    final cap = int.tryParse(capacityCtrl.text.trim()) ?? 0;
+
+    if (title.isEmpty || desc.isEmpty || loc.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Completa título, descripción y ubicación.')),
+      );
+      return;
+    }
+    if (category == null || subcategory == null) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona categoría y tipo de evento.')),
+      );
+      return;
+    }
+    if (startAt == null || endAt == null) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona fecha y hora.')),
+      );
+      return;
+    }
+    if (!endAt!.isAfter(startAt!)) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La hora fin debe ser posterior a la de inicio.')),
+      );
+      return;
+    }
+    if (cap <= 0) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El cupo debe ser mayor a 0.')),
+      );
+      return;
+    }
+
+    // 3. Mostramos Diálogo de Carga (Bloquea la pantalla de forma segura)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
     try {
-      final title = titleCtrl.text.trim();
-      final desc = descCtrl.text.trim();
-      final loc = locationCtrl.text.trim();
-      final cap = int.tryParse(capacityCtrl.text.trim()) ?? 0;
-
-      if (title.isEmpty || desc.isEmpty || loc.isEmpty) {
-        throw Exception(
-            'Completa título, descripción y ubicación.');
-      }
-      if (category == null || subcategory == null) {
-        throw Exception(
-            'Selecciona categoría y tipo de evento.');
-      }
-      if (startAt == null || endAt == null) {
-        throw Exception('Selecciona fecha y hora.');
-      }
-      if (!endAt!.isAfter(startAt!)) {
-        throw Exception(
-            'La hora fin debe ser posterior a la hora inicio.');
-      }
-      if (cap <= 0) {
-        throw Exception('El cupo debe ser mayor a 0.');
-      }
-
+      // 4. Llamada a Firebase
       if (widget.initial == null) {
         await service.createEvent(
           title: title,
@@ -157,14 +194,41 @@ class _CreateEditEventScreenState
         );
       }
 
-      if (!mounted) return;
-      Navigator.pop(context);
+      // 5. ÉXITO - LÓGICA DE SALIDA INTELIGENTE
+      if (mounted) {
+        // A. Cerramos el diálogo de carga
+        Navigator.of(context).pop(); 
+
+        if (widget.initial == null) {
+          // --- MODO CREAR (Estamos en un Tab) ---
+          _clearForm(); // Limpiamos campos
+          
+          // Mostramos mensaje de éxito
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Evento creado con éxito!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Ejecutamos la orden del padre para cambiar de pestaña
+          widget.onEventSaved?.call(); 
+        } else {
+          // --- MODO EDITAR (Estamos en una ventana nueva) ---
+          Navigator.of(context).pop(); // Cerramos la pantalla
+        }
+      }
+
     } catch (e) {
-      if (!mounted) return;
-      setState(() =>
-          error = e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

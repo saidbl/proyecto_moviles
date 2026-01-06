@@ -79,8 +79,15 @@ NavigationDestination(
           ];
         } else if (isOrganizer) {
           pages = [
-            MyEventsScreen(currentUid: u.uid),
-            const CreateEditEventScreen(),
+            MyEventsScreen(currentUid: u.uid),            
+            CreateEditEventScreen(
+              onEventSaved: () {
+                setState(() {
+                  index = 0; 
+                });
+              },
+            ),
+            
             const ProfileScreen(),
             const OrganizerStatsScreen(),
           ];
@@ -95,7 +102,7 @@ NavigationDestination(
             EventListScreen(
               isAdmin: true,
               currentUid: u.uid,
-              canRegister: false, // ✅ admin NO se registra a eventos
+              canRegister: false,
             ),
             const AdminStatsScreen(),
             const ProfileScreen(),
