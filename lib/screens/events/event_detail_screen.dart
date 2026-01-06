@@ -51,17 +51,9 @@ class EventDetailScreen extends StatelessWidget {
                 pinned: true,
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
-                actions: [
-                  if (canEdit)
-                    IconButton(
-                      tooltip: 'Cancelar evento',
-                      icon: const Icon(Icons.cancel_outlined),
-                      onPressed: () async {
-                        await service.cancelEvent(e.id);
-                        if (context.mounted) Navigator.pop(context);
-                      },
-                    ),
-                ],
+                // 🗑️ ELIMINADO: actions: [ ... IconButton ... ] 
+                // Ya no permitimos cancelar desde aquí.
+                
                 flexibleSpace: FlexibleSpaceBar(
                   background: hasImage
                       ? Image.network(
@@ -295,37 +287,54 @@ class _RegisterButton extends StatelessWidget {
       initialData: false,
       builder: (context, snap) {
         final registered = snap.data == true;
-        final disabled = event.isFull && !registered;
+        
+        // 1. SI YA ESTÁS REGISTRADO: Mostrar solo mensaje informativo
+        if (registered) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Ya te has registrado al evento.\nPuedes verlo desde "Mis registros".',
+                    style: TextStyle(
+                      color: Colors.green.shade900,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // 2. SI NO ESTÁS REGISTRADO: Mostrar botón de registro normal
+        final disabled = event.isFull;
 
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor:
-                  registered ? Colors.redAccent : Colors.indigo,
+              backgroundColor: Colors.indigo, // Color normal de registro
             ),
             onPressed: disabled
                 ? null
                 : () async {
-                    if (registered) {
-                      await service.unregisterFromEvent(event.id);
-                    } else {
-                      await service.registerToEvent(event.id);
-                    }
+                    await service.registerToEvent(event.id);
                   },
-            icon: Icon(
-              registered ? Icons.close : Icons.check,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.person_add, color: Colors.white),
             label: Text(
-              registered
-                  ? 'Cancelar registro'
-                  : (event.isFull
-                      ? 'Evento lleno'
-                      : 'Registrarme'),
-              style:
-                  const TextStyle(color: Colors.white, fontSize: 16),
+              event.isFull ? 'Evento lleno' : 'Registrarme',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
           ),
         );

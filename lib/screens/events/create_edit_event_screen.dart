@@ -20,8 +20,7 @@ class CreateEditEventScreen extends StatefulWidget {
   State<CreateEditEventScreen> createState() => _CreateEditEventScreenState();
 }
 
-class _CreateEditEventScreenState
-    extends State<CreateEditEventScreen> {
+class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
   final service = EventService();
 
   final titleCtrl = TextEditingController();
@@ -114,14 +113,13 @@ class _CreateEditEventScreenState
       endAt = null;
       category = null;
       subcategory = null;
+      error = null;
     });
   }
 
   Future<void> save() async {
-    // 1. Ocultamos el teclado antes de hacer nada
     FocusScope.of(context).unfocus();
 
-    // 2. Validaciones básicas
     final title = titleCtrl.text.trim();
     final desc = descCtrl.text.trim();
     final loc = locationCtrl.text.trim();
@@ -158,7 +156,6 @@ class _CreateEditEventScreenState
       return;
     }
 
-    // 3. Mostramos Diálogo de Carga (Bloquea la pantalla de forma segura)
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -166,7 +163,6 @@ class _CreateEditEventScreenState
     );
 
     try {
-      // 4. Llamada a Firebase
       if (widget.initial == null) {
         await service.createEvent(
           title: title,
@@ -194,34 +190,28 @@ class _CreateEditEventScreenState
         );
       }
 
-      // 5. ÉXITO - LÓGICA DE SALIDA INTELIGENTE
       if (mounted) {
-        // A. Cerramos el diálogo de carga
-        Navigator.of(context).pop(); 
+        Navigator.of(context).pop(); // Cierra loading
 
         if (widget.initial == null) {
-          // --- MODO CREAR (Estamos en un Tab) ---
-          _clearForm(); // Limpiamos campos
-          
-          // Mostramos mensaje de éxito
+          // MODO CREAR
+          _clearForm();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('¡Evento creado con éxito!'),
               backgroundColor: Colors.green,
             ),
           );
-
-          // Ejecutamos la orden del padre para cambiar de pestaña
           widget.onEventSaved?.call(); 
         } else {
-          // --- MODO EDITAR (Estamos en una ventana nueva) ---
-          Navigator.of(context).pop(); // Cerramos la pantalla
+          // MODO EDITAR
+          Navigator.of(context).pop(); 
         }
       }
 
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // Cierra loading
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
@@ -232,8 +222,186 @@ class _CreateEditEventScreenState
     }
   }
 
+  // =========================================================
+  // LOGICA DE ELIMINACIÓN / CANCELACIÓN
+  // =========================================================
+
+  Future<void> _handleDeleteOptions() async {
+    final event = widget.initial;
+    if (event == null) return;
+
+    final bool isFinished = event.endAt.isBefore(DateTime.now());
+    final bool isActive = event.isActive ?? true;
+
+    // CASO 1: Finalizado o Cancelado -> SOLO BORRAR
+    if (isFinished || !isActive) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('¿Eliminar registro permanentemente?'),
+          content: Text(
+            isFinished 
+              ? 'El evento ya finalizó. Si lo eliminas, desaparecerá de tu historial y de la base de datos para siempre.'
+              : 'El evento ya está cancelado. ¿Deseas borrarlo definitivamente de la base de datos?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('ELIMINAR TODO', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        await _performDelete(event.id);
+      }
+      return;
+    }
+
+    // CASO 2: Activo -> CANCELAR O BORRAR
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Gestionar evento activo'),
+        content: const Text(
+          'Selecciona una acción:\n\n'
+          'SOLO CANCELAR (Recomendado): \n'
+          'El evento se marca como "Cancelado".\n\n'
+          'ELIMINAR: \n'
+          'Borra el evento permanentemente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Volver'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx); 
+              _confirmCancel(event.id);
+            },
+            child: const Text('Solo Cancelar', style: TextStyle(color: Colors.orange)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _confirmDelete(event.id);
+            },
+            child: const Text('ELIMINAR', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Helpers definidos dentro de la clase ---
+
+  Future<void> _performDelete(String id) async {
+    await _performAction(
+      () => service.deleteEvent(id), 
+      'Evento eliminado permanentemente'
+    );
+  }
+
+  Future<void> _confirmCancel(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Confirmar cancelación?'),
+        content: const Text(
+          'Al cancelar, el evento pasará a estado INACTIVO.\n'
+          '¿Estás seguro?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('Sí, Cancelar', style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _performAction(
+        () => service.cancelEvent(id), 
+        'Evento cancelado (Inactivo)'
+      );
+    }
+  }
+
+  Future<void> _confirmDelete(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Estás absolutamente seguro?'),
+        content: const Text(
+          'Esta acción NO se puede deshacer.\n'
+          'Se borrarán el evento, los comentarios y los registros de asistencia.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('SÍ, BORRAR TODO', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _performDelete(id);
+    }
+  }
+
+  Future<void> _performAction(Future<void> Function() action, String successMessage) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await action();
+      
+      if (mounted) {
+        Navigator.pop(context); // Cerrar loading
+        
+        // Si estamos editando, cerramos la pantalla
+        if (widget.initial != null) {
+           Navigator.pop(context); 
+        }
+
+        widget.onEventSaved?.call(); 
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(successMessage)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Cerrar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // =========================================================
+  // BUILD
+  // =========================================================
+
   @override
   Widget build(BuildContext context) {
+    // Si no tienes eventCatalog, define uno temporal o impórtalo
+    // final eventCatalog = {'Académicos': ['Conferencia'], 'Deportivos': ['Partido']}; 
+    
     final categories = eventCatalog.keys.toList();
     final subcats = category == null
         ? <String>[]
@@ -245,9 +413,7 @@ class _CreateEditEventScreenState
         backgroundColor: Colors.white,
         elevation: 0.5,
         title: Text(
-          widget.initial == null
-              ? 'Crear evento'
-              : 'Editar evento',
+          widget.initial == null ? 'Crear evento' : 'Editar evento',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -255,15 +421,12 @@ class _CreateEditEventScreenState
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            /// 🖼 IMAGEN
             _ImagePickerCard(
               imageFile: imageFile,
               imageUrl: widget.initial?.imageUrl,
               onTap: loading ? null : pickImage,
             ),
-
             const SizedBox(height: 20),
-
             _SectionCard(
               title: 'Información general',
               children: [
@@ -271,20 +434,14 @@ class _CreateEditEventScreenState
                 _Input(descCtrl, 'Descripción', maxLines: 4),
               ],
             ),
-
             const SizedBox(height: 16),
-
             _SectionCard(
               title: 'Clasificación',
               children: [
                 DropdownButtonFormField<String>(
                   value: category,
-                  decoration:
-                      const InputDecoration(labelText: 'Categoría'),
-                  items: categories
-                      .map((c) =>
-                          DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
+                  decoration: const InputDecoration(labelText: 'Categoría'),
+                  items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                   onChanged: (v) => setState(() {
                     category = v;
                     subcategory = null;
@@ -293,28 +450,18 @@ class _CreateEditEventScreenState
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: subcategory,
-                  decoration: const InputDecoration(
-                      labelText: 'Tipo de evento'),
-                  items: subcats
-                      .map((s) =>
-                          DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: category == null
-                      ? null
-                      : (v) =>
-                          setState(() => subcategory = v),
+                  decoration: const InputDecoration(labelText: 'Tipo de evento'),
+                  items: subcats.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                  onChanged: category == null ? null : (v) => setState(() => subcategory = v),
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
-
             _SectionCard(
               title: 'Detalles',
               children: [
                 _Input(locationCtrl, 'Ubicación'),
-                _Input(capacityCtrl, 'Cupo máximo',
-                    keyboard: TextInputType.number),
+                _Input(capacityCtrl, 'Cupo máximo', keyboard: TextInputType.number),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -324,8 +471,7 @@ class _CreateEditEventScreenState
                         value: startAt,
                         onTap: () async {
                           final d = await pickDateTime(startAt);
-                          if (d != null)
-                            setState(() => startAt = d);
+                          if (d != null) setState(() => startAt = d);
                         },
                       ),
                     ),
@@ -336,8 +482,7 @@ class _CreateEditEventScreenState
                         value: endAt,
                         onTap: () async {
                           final d = await pickDateTime(endAt);
-                          if (d != null)
-                            setState(() => endAt = d);
+                          if (d != null) setState(() => endAt = d);
                         },
                       ),
                     ),
@@ -345,15 +490,11 @@ class _CreateEditEventScreenState
                 ),
               ],
             ),
-
             if (error != null) ...[
               const SizedBox(height: 12),
-              Text(error!,
-                  style: const TextStyle(color: Colors.red)),
+              Text(error!, style: const TextStyle(color: Colors.red)),
             ],
-
             const SizedBox(height: 24),
-
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -365,32 +506,69 @@ class _CreateEditEventScreenState
                 ),
               ),
             ),
+            
+            const SizedBox(height: 32),
+
+            // BOTÓN DE GESTIÓN (CANCELAR / ELIMINAR)
+            if (widget.initial != null) ...[
+              const Divider(),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: (widget.initial!.endAt.isBefore(DateTime.now()) || !(widget.initial!.isActive ?? true))
+                          ? Colors.red 
+                          : Colors.orange.shade800,
+                    ),
+                    foregroundColor: (widget.initial!.endAt.isBefore(DateTime.now()) || !(widget.initial!.isActive ?? true))
+                          ? Colors.red 
+                          : Colors.orange.shade800,
+                  ),
+                  icon: Icon(
+                    (widget.initial!.endAt.isBefore(DateTime.now()) || !(widget.initial!.isActive ?? true))
+                        ? Icons.delete_forever
+                        : Icons.cancel_presentation,
+                  ),
+                  label: Text(
+                    (widget.initial!.endAt.isBefore(DateTime.now()) || !(widget.initial!.isActive ?? true))
+                        ? 'Eliminar evento finalizado/cancelado'
+                        : 'Cancelar o Eliminar evento',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _handleDeleteOptions,
+                ),
+              ),
+            ],
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 }
+
+// =========================================================
+// WIDGETS AUXILIARES (Para que no tengas errores de referencia)
+// =========================================================
+
 class _SectionCard extends StatelessWidget {
   final String title;
   final List<Widget> children;
-
   const _SectionCard({required this.title, required this.children});
-
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600)),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             ...children,
           ],
@@ -405,10 +583,7 @@ class _Input extends StatelessWidget {
   final String label;
   final int maxLines;
   final TextInputType? keyboard;
-
-  const _Input(this.ctrl, this.label,
-      {this.maxLines = 1, this.keyboard});
-
+  const _Input(this.ctrl, this.label, {this.maxLines = 1, this.keyboard});
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -430,13 +605,7 @@ class _DateButton extends StatelessWidget {
   final String label;
   final DateTime? value;
   final VoidCallback onTap;
-
-  const _DateButton({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
+  const _DateButton({required this.label, required this.value, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
@@ -445,8 +614,9 @@ class _DateButton extends StatelessWidget {
         value == null
             ? label
             : '$label: ${value!.day}/${value!.month}/${value!.year} '
-                '${value!.hour.toString().padLeft(2, '0')}:${value!.minute.toString().padLeft(2, '0')}',
+              '${value!.hour.toString().padLeft(2, '0')}:${value!.minute.toString().padLeft(2, '0')}',
         textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12),
       ),
     );
   }
@@ -456,17 +626,10 @@ class _ImagePickerCard extends StatelessWidget {
   final File? imageFile;
   final String? imageUrl;
   final VoidCallback? onTap;
-
-  const _ImagePickerCard({
-    this.imageFile,
-    this.imageUrl,
-    this.onTap,
-  });
-
+  const _ImagePickerCard({this.imageFile, this.imageUrl, this.onTap});
   @override
   Widget build(BuildContext context) {
     final hasImage = imageFile != null || imageUrl != null;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -475,15 +638,9 @@ class _ImagePickerCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           color: Colors.grey.shade200,
           image: imageFile != null
-              ? DecorationImage(
-                  image: FileImage(imageFile!),
-                  fit: BoxFit.cover,
-                )
+              ? DecorationImage(image: FileImage(imageFile!), fit: BoxFit.cover)
               : imageUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(imageUrl!),
-                      fit: BoxFit.cover,
-                    )
+                  ? DecorationImage(image: NetworkImage(imageUrl!), fit: BoxFit.cover)
                   : null,
         ),
         child: !hasImage

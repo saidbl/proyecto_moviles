@@ -79,8 +79,7 @@ class _RegistrationCardState extends State<_RegistrationCard> {
     final r = widget.registration;
     final theme = Theme.of(context);
 
-    final start =
-        r.eventStartAt == null ? null : _fmt(r.eventStartAt!);
+    final start = r.eventStartAt == null ? null : _fmt(r.eventStartAt!);
 
     final subtitle = [
       if ((r.eventLocation ?? '').isNotEmpty) r.eventLocation!,
@@ -120,11 +119,8 @@ class _RegistrationCardState extends State<_RegistrationCard> {
 
               const SizedBox(height: 6),
 
-              /// 📍 SUBINFO
               Text(
-                subtitle.isEmpty
-                    ? 'ID: ${r.eventId}'
-                    : subtitle,
+                subtitle.isEmpty ? 'ID: ${r.eventId}' : subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.grey.shade600,
                 ),
@@ -132,60 +128,138 @@ class _RegistrationCardState extends State<_RegistrationCard> {
 
               const SizedBox(height: 16),
 
-              /// 🔘 ACCIONES
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.qr_code),
-                      label: const Text('Mi QR'),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MyAttendanceQrScreen(
-                              eventId: r.eventId,
-                            ),
+              /// 🔘 ÁREA DINÁMICA (ESTADO Y BOTONES)
+              StreamBuilder(
+                stream: widget.service.streamEventById(r.eventId),
+                builder: (context, snapshot) {
+                  // Valores por defecto
+                  bool isActive = true;
+                  bool eventExists = true;
+
+                  if (snapshot.hasError) {
+                    // Si da error, asumimos que fue borrado (Hard Delete)
+                    eventExists = false;
+                    isActive = false;
+                  } else if (snapshot.hasData) {
+                    isActive = snapshot.data!.isActive;
+                  }
+
+                  // ¿Debemos mostrar la UI de cancelado/ocultar?
+                  final isHideAction = !isActive || !eventExists;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      
+                      if (isHideAction)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade100),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.close),
-                      label: const Text('Cancelar'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.redAccent,
-                      ),
-                      onPressed: () async {
-                        try {
-                          await widget.service
-                              .unregisterFromEvent(r.eventId);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Registro cancelado'),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  e.toString().replaceFirst(
-                                      'Exception: ', ''),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline,
+                                  size: 20, color: Colors.red.shade700),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  eventExists
+                                      ? 'Este evento ha sido cancelado por el organizador.'
+                                      : 'Este evento ha sido eliminado.',
+                                  style: TextStyle(
+                                    color: Colors.red.shade900,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                ],
+                            ],
+                          ),
+                        ),
+
+                      // 🔘 2. BOTONES DE ACCIÓN
+                      Row(
+                        children: [
+                          // Botón QR (Solo visible si el evento está activo)
+                          if (!isHideAction) ...[
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.qr_code),
+                                label: const Text('Mi QR'),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MyAttendanceQrScreen(
+                                        eventId: r.eventId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+
+                          // Botón Dinámico (Cancelar vs Ocultar)
+                          Expanded(
+                            child: TextButton.icon(
+                              icon: Icon(isHideAction
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.close),
+                              label: Text(
+                                  isHideAction ? 'Ocultar' : 'Cancelar'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: isHideAction
+                                    ? Colors.grey.shade700
+                                    : Colors.redAccent,
+                                backgroundColor: isHideAction
+                                    ? Colors.grey.shade100
+                                    : null,
+                              ),
+                              onPressed: () async {
+                                try {
+                                  await widget.service
+                                      .unregisterFromEvent(r.eventId);
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(isHideAction
+                                            ? 'Registro eliminado de tu lista'
+                                            : 'Tu asistencia ha sido cancelada'),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(e
+                                            .toString()
+                                            .replaceFirst(
+                                                'Exception: ', '')),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

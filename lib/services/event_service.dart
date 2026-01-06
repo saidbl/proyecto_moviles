@@ -83,7 +83,7 @@ class EventService {
         .map((d) => d.exists);
   }
 
-  /// ✅ Mis registros (ALUMNO)
+  /// Mis registros (ALUMNO)
   /// IMPORTANTE: NO usamos orderBy(createdAt) para evitar índices/errores.
   /// - Solo trae docs NUEVOS (los que tengan userId).
   /// - Los viejos se arreglan con ensureRegistrationProjectionIfNeeded().
@@ -190,24 +190,128 @@ class EventService {
   await _db.collection('events').doc(eventId).update(data);
   }
 
+  // =========================
+  // CANCEL (Soft Delete) - CORREGIDO
+  // =========================
   Future<void> cancelEvent(String eventId) async {
-    await _db.collection('events').doc(eventId).update({
+    final eventRef = _db.collection('events').doc(eventId);
+    final registrationsRef = eventRef.collection('registrations');
+
+    // Leemos los datos
+    final results = await Future.wait([
+      eventRef.get(),          // Index 0: DocumentSnapshot
+      registrationsRef.get(),  // Index 1: QuerySnapshot
+    ]);
+
+    // ✅ AQUÍ ESTÁ LA CORRECCIÓN: Decimos qué es cada cosa
+    final eventSnap = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+    final regSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
+    
+    final title = eventSnap.data()?['title'] ?? 'Evento';
+
+    // Update estado
+    await eventRef.update({
       'isActive': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // Notificación Organizador
     await _notificationService.createNotification(
       userId: _uid,
       title: 'Evento cancelado',
-      message: 'El evento fue marcado como cancelado.',
+      message: 'Has marcado el evento "$title" como cancelado.',
     );
 
+    // Notificaciones Estudiantes
+    final studentNotifications = <Future>[];
+    for (final doc in regSnap.docs) {
+      final data = doc.data(); // Ahora sí reconoce .data()
+      final studentId = data['userId'];
+      if (studentId != null) {
+        studentNotifications.add(
+          _notificationService.createNotification(
+            userId: studentId,
+            title: 'Evento cancelado',
+            message: 'El evento "$title" al que estabas inscrito ha sido cancelado por el organizador.',
+          )
+        );
+      }
+    }
+    
+    if (studentNotifications.isNotEmpty) {
+      await Future.wait(studentNotifications);
+    }
+  }
+
+  // =========================
+  // DELETE (Hard Delete) - CORREGIDO
+  // =========================
+  Future<void> deleteEvent(String eventId) async {
+    final eventRef = _db.collection('events').doc(eventId);
+
+    // Leemos datos previos
+    final results = await Future.wait([
+      eventRef.collection('registrations').get(), // Index 0: QuerySnapshot
+      eventRef.collection('comments').get(),      // Index 1: QuerySnapshot
+      eventRef.get(),                             // Index 2: DocumentSnapshot
+    ]);
+
+    // ✅ CORRECCIÓN DE TIPOS
+    final regDocs = (results[0] as QuerySnapshot).docs;
+    final commentDocs = (results[1] as QuerySnapshot).docs;
+    final eventSnap = results[2] as DocumentSnapshot<Map<String, dynamic>>;
+    
+    final title = eventSnap.data()?['title'] ?? 'Evento';
+
+    // Batch
+    final batch = _db.batch();
+
+    for (final doc in regDocs) {
+      batch.delete(doc.reference);
+    }
+    for (final doc in commentDocs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(eventRef);
+
+    // Ejecutar borrado
+    await batch.commit();
+
+    // Notificación Organizador
+    await _notificationService.createNotification(
+      userId: _uid,
+      title: 'Evento eliminado',
+      message: 'Tu evento "$title" y todos sus datos han sido eliminados correctamente.',
+    );
+
+    // Notificaciones Estudiantes
+    final studentNotifications = <Future>[];
+    for (final doc in regDocs) {
+      // Necesitamos castear la data del documento también
+      final data = doc.data() as Map<String, dynamic>;
+      final studentId = data['userId'];
+      
+      if (studentId != null) {
+        studentNotifications.add(
+          _notificationService.createNotification(
+            userId: studentId,
+            title: 'Evento eliminado',
+            message: 'El evento "$title" ha sido eliminado permanentemente. Ya no aparecerá en tus registros.',
+          )
+        );
+      }
+    }
+    
+    if (studentNotifications.isNotEmpty) {
+      await Future.wait(studentNotifications);
+    }
   }
 
   // =========================
   // REGISTROS (SPRINT 3)
   // =========================
 
-  /// ✅ Registrar alumno al evento (transaction)
+  /// Registrar alumno al evento (transaction)
   Future<void> registerToEvent(String eventId) async {
     final me = await _userService.streamMe().first;
 
@@ -247,7 +351,7 @@ class EventService {
       final eventEndAt = _readDate(data, 'endAt');
 
       tx.set(regRef, {
-        'userId': _uid, // ✅ clave para streamMyRegistrations()
+        'userId': _uid, // clave para streamMyRegistrations()
         'userName': me.name,
         'userEmail': me.email,
         'createdAt': FieldValue.serverTimestamp(),
@@ -290,41 +394,58 @@ class EventService {
 
   }
 
-  /// ✅ Cancelar registro (transaction)
+  /// Cancelar registro (transaction)
   Future<void> unregisterFromEvent(String eventId) async {
     final eventRef = _db.collection('events').doc(eventId);
     final regRef = eventRef.collection('registrations').doc(_uid);
 
+    // Usamos transacción para leer y decidir atómicamente
     await _db.runTransaction((tx) async {
       final eventSnap = await tx.get(eventRef);
-      if (!eventSnap.exists) throw Exception('Evento no existe');
+      
+      // 1. Verificamos si el evento existe y su estado
+      bool isEventActive = false;
+      int count = 0;
 
-      final data = (eventSnap.data() ?? <String, dynamic>{}) as Map<String, dynamic>;
-      final count = _readInt(data, 'registrationsCount', def: 0);
+      if (eventSnap.exists) {
+        final data = eventSnap.data() as Map<String, dynamic>;
+        isEventActive = data['isActive'] ?? true;
+        count = _readInt(data, 'registrationsCount', def: 0);
+      }
 
       final regSnap = await tx.get(regRef);
       if (!regSnap.exists) throw Exception('No estabas registrado en este evento');
 
+      // 2. BORRAMOS SIEMPRE EL REGISTRO (Esto lo "oculta" de la lista del alumno)
       tx.delete(regRef);
 
-      final next = count - 1;
-      tx.update(eventRef, {
-        'registrationsCount': next < 0 ? 0 : next,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // 3. SOLO SI ESTÁ ACTIVO -> Actualizamos el contador del evento
+      // Si está cancelado/inactivo, NO tocamos el evento padre.
+      // Esto evita el error de permisos y mantiene la lógica de "Ocultar".
+      if (eventSnap.exists && isEventActive) {
+        final next = count - 1;
+        tx.update(eventRef, {
+          'registrationsCount': next < 0 ? 0 : next,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
     });
+
+    // Notificación local de confirmación
     final eventSnap = await _db.collection('events').doc(eventId).get();
     final eventTitle = (eventSnap.data()?['title'] ?? 'Evento').toString();
+    final isActive = eventSnap.data()?['isActive'] ?? true;
 
     await _notificationService.createNotification(
       userId: _uid,
-      title: 'Registro cancelado',
-      message: 'Cancelaste tu registro al evento "$eventTitle".',
+      title: isActive ? 'Registro cancelado' : 'Registro ocultado',
+      message: isActive 
+          ? 'Cancelaste tu registro al evento "$eventTitle".'
+          : 'Has ocultado el evento cancelado "$eventTitle" de tu lista.',
     );
-
   }
 
-  /// ✅ “Backfill” para registros viejos:
+  /// “Backfill” para registros viejos:
   /// Si el alumno YA está registrado (doc existe) pero NO tiene userId/eventTitle, etc.,
   /// los agregamos con merge (sin borrar nada).
   ///
