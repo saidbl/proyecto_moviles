@@ -21,7 +21,6 @@ class EventModel {
 
   // 👇 NUEVO: Lista de UIDs permitidos (Admin + Staff)
   final List<String> allowedUserIds; 
-
   final DateTime? createdAt;
   final DateTime? updatedAt;
 

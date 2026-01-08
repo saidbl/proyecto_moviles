@@ -5,6 +5,9 @@ import 'create_edit_event_screen.dart';
 import 'event_detail_screen.dart';
 import 'scan_attendance_screen.dart';
 import 'event_attendees_screen.dart';
+import 'manage_team_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 // Enum para opciones de ordenamiento
 enum SortOption { dateDesc, dateAsc, nameAsc, attendeesDesc }
@@ -30,6 +33,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Obtienes el ID del usuario actual
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
@@ -220,6 +224,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                         isOngoing: isOngoing,
                         isFinished: isFinished,
                         isCancelled: !isActive,
+                        currentUid: widget.currentUid,
                       ),
                     );
                   },
@@ -293,6 +298,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                     isOngoing: isOngoing,
                     isFinished: isFinished,
                     isCancelled: !isActive,
+                    currentUid: widget.currentUid,
                   ),
                 );
               },
@@ -313,12 +319,14 @@ class _MyEventCard extends StatefulWidget {
   final bool isOngoing;
   final bool isFinished;
   final bool isCancelled;
+  final String currentUid;
 
   const _MyEventCard({
     required this.event,
     required this.isOngoing,
     required this.isFinished,
     required this.isCancelled,
+    required this.currentUid,
   });
 
   @override
@@ -330,13 +338,17 @@ class _MyEventCardState extends State<_MyEventCard> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final e = widget.event;
     final theme = Theme.of(context);
     final hasImage = e.imageUrl != null && e.imageUrl!.isNotEmpty;
+    
+    // 🧠 Lógica: Solo el dueño original puede gestionar el equipo
+    final isOwner = e.organizerId == widget.currentUid;
+    final bool canEdit = currentUserId != null && 
+    (e.organizerId == currentUserId || e.allowedUserIds.contains(currentUserId));
 
-    // Opacidad reducida si ya pasó o se canceló
     final double opacity = (widget.isCancelled || widget.isFinished) ? 0.75 : 1.0;
-    // Escala de grises si está cancelado
     final ColorFilter? colorFilter = widget.isCancelled 
         ? const ColorFilter.mode(Colors.grey, BlendMode.saturation) 
         : null;
@@ -354,7 +366,6 @@ class _MyEventCardState extends State<_MyEventCard> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),
-              // Borde verde si está ocurriendo ahora mismo
               border: widget.isOngoing 
                   ? Border.all(color: Colors.green, width: 2) 
                   : null,
@@ -394,22 +405,12 @@ class _MyEventCardState extends State<_MyEventCard> {
                                 ),
                               ),
                         
-                        // ETIQUETAS DE ESTADO
                         if (widget.isOngoing)
-                          Positioned(
-                            top: 10, right: 10,
-                            child: _StatusBadge(label: 'EN CURSO', color: Colors.green),
-                          )
+                          Positioned(top: 10, right: 10, child: _StatusBadge(label: 'EN CURSO', color: Colors.green))
                         else if (widget.isCancelled)
-                          Positioned(
-                            top: 10, right: 10,
-                            child: _StatusBadge(label: 'CANCELADO', color: Colors.red),
-                          )
+                          Positioned(top: 10, right: 10, child: _StatusBadge(label: 'CANCELADO', color: Colors.red))
                         else if (widget.isFinished)
-                          Positioned(
-                            top: 10, right: 10,
-                            child: _StatusBadge(label: 'FINALIZADO', color: Colors.grey.shade800),
-                          ),
+                          Positioned(top: 10, right: 10, child: _StatusBadge(label: 'FINALIZADO', color: Colors.grey.shade800)),
                       ],
                     ),
                   ),
@@ -431,32 +432,16 @@ class _MyEventCardState extends State<_MyEventCard> {
 
                       const SizedBox(height: 6),
 
-                      /// 📍 DATOS
-                      Row(
-                        children: [
-                          Icon(Icons.category_outlined, size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${e.category} • ${e.subcategory}',
-                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
+                      /// 📍 INFO
+                      _InfoRow(icon: Icons.category_outlined, text: '${e.category} • ${e.subcategory}'),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.people_outline, size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${e.registrationsCount} asistentes',
-                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
+                      _InfoRow(icon: Icons.location_on_outlined, text: e.location),
+                      const SizedBox(height: 4),
+                      _InfoRow(icon: Icons.people_outline, text: '${e.registrationsCount} asistentes'),
 
                       const SizedBox(height: 16),
-
-                      /// 🎛 ACCIONES (Solo mostramos lo útil)
+                      
+                      /// 🎛 ACCIONES (Wrap)
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -467,12 +452,13 @@ class _MyEventCardState extends State<_MyEventCard> {
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => EventDetailScreen(event: e, canEdit: true),
+                                builder: (_) => EventDetailScreen(event: e, canEdit: canEdit),
                               ),
                             ),
                           ),
                           
-                          if (!widget.isCancelled)
+                          // EDITAR: Solo si no está cancelado + Solo si soy Dueño o Co-Organizador (la lógica de permisos de DB ya nos protege, pero visualmente lo dejamos activo)
+                          if (!widget.isCancelled && canEdit)
                             _ActionChip(
                               icon: Icons.edit,
                               label: 'Editar',
@@ -482,6 +468,30 @@ class _MyEventCardState extends State<_MyEventCard> {
                                   builder: (_) => CreateEditEventScreen(initial: e),
                                 ),
                               ),
+                            ),
+
+                          // 🆕 GESTIÓN DE EQUIPO: Solo visible para el Dueño
+                          if (!widget.isCancelled && !widget.isFinished && isOwner)
+                            _ActionChip(
+                              icon: Icons.group_add, // Icono de agregar gente
+                              label: 'Equipo',
+                              // Color distintivo para resaltar esta función nueva
+                              textColor: Colors.indigo,
+                              iconColor: Colors.indigo,
+                              backgroundColor: Colors.indigo.withOpacity(0.1),
+                              onTap: () {
+                                // Navegamos a la pantalla nueva
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ManageTeamScreen(
+                                      eventId: e.id,
+                                      eventTitle: e.title,
+                                      currentUid: widget.currentUid,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           
                           if (!widget.isCancelled && !widget.isFinished)
@@ -520,6 +530,23 @@ class _MyEventCardState extends State<_MyEventCard> {
   }
 }
 
+// Pequeño helper para filas de info (opcional, para limpiar código)
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InfoRow({required this.icon, required this.text});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.grey.shade600),
+        const SizedBox(width: 4),
+        Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600), overflow: TextOverflow.ellipsis)),
+      ],
+    );
+  }
+}
+
 class _StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -545,35 +572,48 @@ class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  
+  // Parámetros opcionales de estilo
+  final Color? backgroundColor;
+  final Color? iconColor;
+  final Color? textColor;
 
   const _ActionChip({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.backgroundColor,
+    this.iconColor,
+    this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themePrimary = Theme.of(context).colorScheme.primary;
+    final effectiveBg = backgroundColor ?? themePrimary.withOpacity(0.08);
+    final effectiveIcon = iconColor ?? themePrimary;
+    final effectiveText = textColor ?? themePrimary;
+
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+          color: effectiveBg,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+            Icon(icon, size: 18, color: effectiveIcon),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 12,
+                color: effectiveText,
+                fontSize: 12, 
               ),
             ),
           ],

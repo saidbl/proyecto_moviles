@@ -51,7 +51,7 @@ class EventDetailScreen extends StatelessWidget {
                 pinned: true,
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
-                // 🗑️ ELIMINADO: actions: [ ... IconButton ... ] 
+                // ELIMINADO: actions: [ ... IconButton ... ] 
                 // Ya no permitimos cancelar desde aquí.
                 
                 flexibleSpace: FlexibleSpaceBar(
