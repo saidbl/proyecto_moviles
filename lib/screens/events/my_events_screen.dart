@@ -36,22 +36,19 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         backgroundColor: Colors.white,
         elevation: 0.5,
         title: const Text(
-          'Mis eventos',
+          'Gestionar eventos', // Cambié levemente el título para reflejar que hay más cosas
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         actions: [
-          // 🛠 SUPER MENÚ DE FILTROS Y ORDENAMIENTO
+          // 🛠 TU SUPER MENÚ ORIGINAL (Intacto)
           PopupMenuButton<dynamic>(
-            icon: const Icon(Icons.tune, color: Colors.black87), // Icono de ajuste
+            icon: const Icon(Icons.tune, color: Colors.black87),
             tooltip: 'Filtrar y Ordenar',
             onSelected: (value) {
               setState(() {
-                // Lógica para Ordenamiento
                 if (value is SortOption) {
                   _sortBy = value;
-                } 
-                // Lógica para Filtros (Strings identificadores)
-                else if (value == 'toggle_active') {
+                } else if (value == 'toggle_active') {
                   _showActive = !_showActive;
                 } else if (value == 'toggle_finished') {
                   _showFinished = !_showFinished;
@@ -61,12 +58,9 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               });
             },
             itemBuilder: (context) => [
-              // --- SECCIÓN 1: ORDENAR ---
               const PopupMenuItem(
-                enabled: false,
-                height: 32,
-                child: Text('ORDENAR POR', 
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                enabled: false, height: 32,
+                child: Text('ORDENAR POR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
               CheckedPopupMenuItem(
                 value: SortOption.dateDesc,
@@ -88,15 +82,10 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                 checked: _sortBy == SortOption.nameAsc,
                 child: const Text('Nombre (A-Z)'),
               ),
-              
               const PopupMenuDivider(),
-
-              // --- SECCIÓN 2: FILTROS ---
               const PopupMenuItem(
-                enabled: false,
-                height: 32,
-                child: Text('MOSTRAR ESTADO', 
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                enabled: false, height: 32,
+                child: Text('MOSTRAR ESTADO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
               CheckedPopupMenuItem(
                 value: 'toggle_active',
@@ -118,122 +107,199 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: StreamBuilder<List<EventModel>>(
-        stream: service.streamMyEvents(),
-        initialData: const [],
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return _ErrorState(error: snap.error.toString());
-          }
+      // 👇👇👇 CAMBIO PRINCIPAL: SingleChildScrollView + Column 👇👇👇
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            
+            // 1. TÍTULO SECCIÓN PROPIA
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Text('Mis Eventos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
 
-          var allEvents = snap.data ?? const [];
+            // 2. TU STREAM BUILDER ORIGINAL (Lógica intacta)
+            StreamBuilder<List<EventModel>>(
+              stream: service.streamMyEvents(),
+              initialData: const [],
+              builder: (context, snap) {
+                if (snap.hasError) {
+                  return _ErrorState(error: snap.error.toString());
+                }
 
-          if (snap.connectionState == ConnectionState.waiting &&
-              allEvents.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+                var allEvents = snap.data ?? const [];
 
-          if (allEvents.isEmpty) {
-            return const _EmptyMyEventsState();
-          }
+                if (snap.connectionState == ConnectionState.waiting && allEvents.isEmpty) {
+                  return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+                }
 
-          // =================================================
-          // 🧠 LÓGICA DE FILTRADO Y PRIORIDAD
-          // =================================================
-          final now = DateTime.now();
-          
-          final ongoingEvents = <EventModel>[];
-          final otherEvents = <EventModel>[];
+                if (allEvents.isEmpty) {
+                  return const _EmptyMyEventsState();
+                }
 
-          for (var e in allEvents) {
-            final isActive = e.isActive ?? true;
-            // "En Curso": Activo + Inicio en pasado + Fin en futuro
-            final isOngoing = isActive && 
-                              e.startAt.isBefore(now) && 
-                              e.endAt.isAfter(now);
+                // --- TU LÓGICA DE FILTRADO (COPIADA TAL CUAL) ---
+                final now = DateTime.now();
+                
+                final ongoingEvents = <EventModel>[];
+                final otherEvents = <EventModel>[];
 
-            if (isOngoing) {
-              ongoingEvents.add(e);
-            } else {
-              // Filtros normales
-              bool keep = false;
-              final isFinished = e.endAt.isBefore(now);
-              final isFuture = e.startAt.isAfter(now); // O simplemente !isFinished
-              
-              if (!isActive) {
-                if (_showCancelled) keep = true;
-              } else if (isFinished) {
-                if (_showFinished) keep = true;
-              } else {
-                // Asumimos Activo/Futuro
-                if (_showActive) keep = true;
-              }
+                for (var e in allEvents) {
+                  final isActive = e.isActive ?? true;
+                  final isOngoing = isActive && e.startAt.isBefore(now) && e.endAt.isAfter(now);
 
-              if (keep) otherEvents.add(e);
-            }
-          }
+                  if (isOngoing) {
+                    ongoingEvents.add(e);
+                  } else {
+                    bool keep = false;
+                    final isFinished = e.endAt.isBefore(now);
+                    
+                    if (!isActive) {
+                      if (_showCancelled) keep = true;
+                    } else if (isFinished) {
+                      if (_showFinished) keep = true;
+                    } else {
+                      if (_showActive) keep = true;
+                    }
 
-          // Ordenamiento de la lista secundaria
-          otherEvents.sort((a, b) {
-            switch (_sortBy) {
-              case SortOption.dateDesc: 
-                return b.startAt.compareTo(a.startAt);
-              case SortOption.dateAsc: 
-                return a.startAt.compareTo(b.startAt);
-              case SortOption.attendeesDesc: 
-                return (b.registrationsCount ?? 0).compareTo(a.registrationsCount ?? 0);
-              case SortOption.nameAsc: 
-                return a.title.compareTo(b.title);
-            }
-          });
+                    if (keep) otherEvents.add(e);
+                  }
+                }
 
-          // Unimos: Prioridad (En curso) + Otros
-          final displayList = [...ongoingEvents, ...otherEvents];
+                otherEvents.sort((a, b) {
+                  switch (_sortBy) {
+                    case SortOption.dateDesc: return b.startAt.compareTo(a.startAt);
+                    case SortOption.dateAsc: return a.startAt.compareTo(b.startAt);
+                    case SortOption.attendeesDesc: return (b.registrationsCount ?? 0).compareTo(a.registrationsCount ?? 0);
+                    case SortOption.nameAsc: return a.title.compareTo(b.title);
+                  }
+                });
 
-          if (displayList.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+                final displayList = [...ongoingEvents, ...otherEvents];
+
+                if (displayList.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.tune, size: 50, color: Colors.grey.shade300),
+                          const SizedBox(height: 10),
+                          const Text('No hay eventos con estos filtros'),
+                          TextButton(
+                            onPressed: () => setState(() {
+                               _showActive = true; 
+                               _showFinished = false; 
+                               _showCancelled = false;
+                            }), 
+                            child: const Text('Restablecer')
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  // 👇 Ajustes necesarios para que funcione dentro del Scroll principal
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: displayList.length,
+                  itemBuilder: (context, i) {
+                    final e = displayList[i];
+                    final isActive = e.isActive ?? true;
+                    final isOngoing = isActive && e.startAt.isBefore(now) && e.endAt.isAfter(now);
+                    final isFinished = e.endAt.isBefore(now);
+                    
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: _MyEventCard(
+                        event: e,
+                        isOngoing: isOngoing,
+                        isFinished: isFinished,
+                        isCancelled: !isActive,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+
+            // 3. NUEVA SECCIÓN: COLABORACIONES
+            _buildCollaborationsSection(),
+
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+/// 🤝 WIDGET PRIVADO PARA LA LISTA DE COLABORACIONES
+  Widget _buildCollaborationsSection() {
+    return StreamBuilder<List<EventModel>>(
+      stream: service.streamCollaborations(),
+      builder: (context, snap) {
+        if (snap.hasError) return Padding(padding: const EdgeInsets.all(16), child: Text('Error carga colaboraciones: ${snap.error}'));
+        
+        // Si no ha cargado o está vacío, no mostramos nada (sección oculta)
+        if (!snap.hasData || (snap.data?.isEmpty ?? true)) {
+          return const SizedBox.shrink();
+        }
+
+        final allCollaborations = snap.data ?? [];
+
+        // Filtro visual: Excluir eventos donde soy dueño (para que no salgan duplicados)
+        final collaborations = allCollaborations.where((e) {
+          return e.organizerId != widget.currentUid;
+        }).toList();
+
+        if (collaborations.isEmpty) return const SizedBox.shrink();
+
+        final now = DateTime.now();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Divider(height: 1),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: Row(
                 children: [
-                  Icon(Icons.tune, size: 60, color: Colors.grey.shade300),
-                  const SizedBox(height: 10),
-                  const Text('No hay eventos con estos filtros'),
-                  TextButton(
-                    onPressed: () => setState(() {
-                       _showActive = true; 
-                       _showFinished = false; 
-                       _showCancelled = false;
-                    }), 
-                    child: const Text('Restablecer filtros')
-                  )
+                  Icon(Icons.people_outline, color: Colors.indigo),
+                  SizedBox(width: 8),
+                  Text('Colaboraciones', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo)),
                 ],
               ),
-            );
-          }
+            ),
+            
+            ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: collaborations.length,
+              itemBuilder: (context, i) {
+                final e = collaborations[i];
+                // Cálculos visuales para la tarjeta
+                final isActive = e.isActive ?? true;
+                final isOngoing = isActive && e.startAt.isBefore(now) && e.endAt.isAfter(now);
+                final isFinished = e.endAt.isBefore(now);
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: displayList.length,
-            itemBuilder: (context, i) {
-              final e = displayList[i];
-              
-              final isActive = e.isActive ?? true;
-              final isOngoing = isActive && e.startAt.isBefore(now) && e.endAt.isAfter(now);
-              final isFinished = e.endAt.isBefore(now);
-              
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: _MyEventCard(
-                  event: e,
-                  isOngoing: isOngoing,
-                  isFinished: isFinished,
-                  isCancelled: !isActive,
-                ),
-              );
-            },
-          );
-        },
-      ),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: _MyEventCard(
+                    event: e,
+                    isOngoing: isOngoing,
+                    isFinished: isFinished,
+                    isCancelled: !isActive,
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

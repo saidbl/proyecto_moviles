@@ -11,13 +11,16 @@ class EventModel {
   final DateTime startAt;
   final DateTime endAt;
 
-  final int capacity; // cupo_maximo
-  final bool isActive; // estado_evento
+  final int capacity; 
+  final bool isActive; 
 
-  final int registrationsCount; // ✅ conteo de registros (para cupo)
+  final int registrationsCount; 
 
   final String organizerId;
   final String organizerName;
+
+  // 👇 NUEVO: Lista de UIDs permitidos (Admin + Staff)
+  final List<String> allowedUserIds; 
 
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -38,6 +41,7 @@ class EventModel {
     required this.registrationsCount,
     required this.organizerId,
     required this.organizerName,
+    required this.allowedUserIds, // 👈 Requerido en constructor
     this.createdAt,
     this.updatedAt,
     this.imageUrl,
@@ -63,10 +67,14 @@ class EventModel {
         'registrationsCount': registrationsCount,
         'organizerId': organizerId,
         'organizerName': organizerName,
+        // 👇 Guardamos la lista en Firestore
+        'allowedUserIds': allowedUserIds, 
         'createdAt': createdAt == null
             ? FieldValue.serverTimestamp()
             : Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
+        // Agregamos imageUrl al mapa si existe (faltaba en tu versión anterior)
+        if (imageUrl != null) 'imageUrl': imageUrl,
       };
 
   static EventModel fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -83,6 +91,15 @@ class EventModel {
       return int.tryParse('$x') ?? 0;
     }
 
+    // Lógica segura para allowedUserIds
+    // Si el evento es viejo y no tiene el campo, asumimos que solo el organizador está permitido.
+    List<String> parseAllowed(dynamic x) {
+      if (x is List) return List<String>.from(x);
+      // Fallback para eventos antiguos:
+      final orgId = (d['organizerId'] ?? '').toString();
+      return orgId.isNotEmpty ? [orgId] : [];
+    }
+
     return EventModel(
       id: doc.id,
       title: (d['title'] ?? '').toString(),
@@ -97,6 +114,8 @@ class EventModel {
       registrationsCount: parseInt(d['registrationsCount']),
       organizerId: (d['organizerId'] ?? '').toString(),
       organizerName: (d['organizerName'] ?? '').toString(),
+      // 👇 Parseamos la lista
+      allowedUserIds: parseAllowed(d['allowedUserIds']), 
       imageUrl: d['imageUrl'],
       createdAt:
           d['createdAt'] is Timestamp ? (d['createdAt'] as Timestamp).toDate() : null,
@@ -105,4 +124,3 @@ class EventModel {
     );
   }
 }
-

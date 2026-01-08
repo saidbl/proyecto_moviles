@@ -65,6 +65,15 @@ class EventService {
         .map((q) => q.docs.map(EventModel.fromDoc).toList());
   }
 
+  Stream<List<EventModel>> streamCollaborations() {
+    return _db
+        .collection('events')
+        .where('allowedUserIds', arrayContains: _uid)
+        .orderBy('startAt', descending: false)
+        .snapshots()
+        .map((q) => q.docs.map(EventModel.fromDoc).toList());
+  }
+
   Stream<EventModel> streamEventById(String eventId) {
     return _db.collection('events').doc(eventId).snapshots().map((doc) {
       if (!doc.exists) throw Exception('Evento no encontrado');
@@ -135,6 +144,7 @@ class EventService {
       'organizerId': _uid,
       'organizerName': me.name,
       'organizerNotificationPrefs': me.notificationPrefs,
+      'allowedUserIds': [_uid],
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -558,5 +568,95 @@ Future<String> _uploadEventImage({
   return await ref.getDownloadURL();
 }
 
+// =========================
+  // 👥 GESTIÓN DE EQUIPO (NUEVO)
+  // =========================
+
+  /// Obtener la lista de miembros del equipo
+  Stream<List<Map<String, dynamic>>> streamEventTeam(String eventId) {
+    return _db
+        .collection('events')
+        .doc(eventId)
+        .collection('team')
+        .orderBy('addedAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) {
+              final data = d.data();
+              data['uid'] = d.id;
+              return data;
+            }).toList());
+  }
+
+  /// Invitar usuario por Email
+  Future<void> inviteUserToEvent({
+    required String eventId,
+    required String email,
+    required String role, // 'co_organizer' o 'staff'
+  }) async {
+    // 1. Buscar usuario por email en la colección 'users'
+    final userQuery = await _db
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (userQuery.docs.isEmpty) {
+      throw Exception('Usuario no encontrado. Debe estar registrado en la App.');
+    }
+
+    final userDoc = userQuery.docs.first;
+    final newMemberUid = userDoc.id;
+    final newMemberEmail = userDoc.data()['email'] ?? email;
+
+    // 2. Verificar si ya está en el equipo
+    final eventRef = _db.collection('events').doc(eventId);
+    final teamRef = eventRef.collection('team').doc(newMemberUid);
+    
+    final teamDoc = await teamRef.get();
+    if (teamDoc.exists) {
+      throw Exception('El usuario ya es parte del equipo.');
+    }
+
+    // 3. Transacción Batch (Agregar a Subcolección + Array Padre)
+    final batch = _db.batch();
+
+    // Guardar rol específico en subcolección
+    batch.set(teamRef, {
+      'email': newMemberEmail,
+      'role': role,
+      'addedAt': FieldValue.serverTimestamp(),
+      'addedBy': _uid,
+    });
+
+    // Dar permiso de lectura general en el documento padre
+    batch.update(eventRef, {
+      'allowedUserIds': FieldValue.arrayUnion([newMemberUid])
+    });
+
+    await batch.commit();
+  }
+
+  /// Eliminar miembro del equipo
+  Future<void> removeMemberFromEvent(String eventId, String memberUid) async {
+    // Validar que no se elimine al dueño
+    final eventSnap = await _db.collection('events').doc(eventId).get();
+    if (eventSnap.data()?['organizerId'] == memberUid) {
+      throw Exception('No puedes eliminar al propietario del evento.');
+    }
+
+    final batch = _db.batch();
+
+    // 1. Borrar de subcolección team
+    final teamRef = _db.collection('events').doc(eventId).collection('team').doc(memberUid);
+    batch.delete(teamRef);
+
+    // 2. Sacar del array de permisos (ya no verá el evento en su lista)
+    final eventRef = _db.collection('events').doc(eventId);
+    batch.update(eventRef, {
+      'allowedUserIds': FieldValue.arrayRemove([memberUid])
+    });
+
+    await batch.commit();
+  }
 
 }
