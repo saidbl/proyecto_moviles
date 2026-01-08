@@ -40,10 +40,9 @@ class EventService {
   // =========================
   // STREAMS
   // =========================
-  Stream<List<EventModel>> streamAllActiveEvents() {
+  Stream<List<EventModel>> streamAllPublicEvents() {
     return _db
         .collection('events')
-        .where('isActive', isEqualTo: true)
         .orderBy('startAt', descending: false)
         .snapshots()
         .map((q) => q.docs.map(EventModel.fromDoc).toList());
