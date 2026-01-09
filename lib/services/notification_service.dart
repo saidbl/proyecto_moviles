@@ -37,4 +37,14 @@ class NotificationService {
         .doc(notificationId)
         .update({'read': true});
   }
+
+  // eliminarla
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      await _db.collection('notifications').doc(notificationId).delete();
+    } catch (e) {
+      print('Error eliminando notificación: $e');
+      rethrow;
+    }
+  }
 }
