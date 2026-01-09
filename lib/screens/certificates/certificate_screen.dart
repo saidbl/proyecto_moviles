@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+
 import '../../models/my_registration_model.dart';
 
 class CertificateScreen extends StatelessWidget {
@@ -44,6 +48,7 @@ class CertificateScreen extends StatelessWidget {
     );
   }
 }
+
 class _CertificateCard extends StatefulWidget {
   final ThemeData theme;
   final String studentName;
@@ -88,6 +93,167 @@ class _CertificateCardState extends State<_CertificateCard>
     super.dispose();
   }
 
+  /// ============================
+  /// 📄 GENERAR Y DESCARGAR PDF
+  /// ============================
+  Future<void> _downloadPdf() async {
+  final pdf = pw.Document();
+
+  pdf.addPage(
+    pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(40),
+      build: (pw.Context context) {
+        return pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(width: 2),
+          ),
+          padding: const pw.EdgeInsets.all(32),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              /// 🏛 ENCABEZADO
+              pw.Text(
+                'INSTITUTO POLITÉCNICO NACIONAL',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+
+              pw.SizedBox(height: 6),
+
+              pw.Text(
+                'Unidad Académica',
+                style: const pw.TextStyle(fontSize: 11),
+              ),
+
+              pw.SizedBox(height: 30),
+
+              /// 🏷 TÍTULO PRINCIPAL
+              pw.Text(
+                'CONSTANCIA DE PARTICIPACIÓN',
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: 1.5,
+                ),
+              ),
+
+              pw.SizedBox(height: 30),
+
+              /// 📄 TEXTO FORMAL
+              pw.Text(
+                'Por medio de la presente se hace constar que:',
+                style: const pw.TextStyle(fontSize: 13),
+                textAlign: pw.TextAlign.center,
+              ),
+
+              pw.SizedBox(height: 20),
+
+              /// 👤 NOMBRE
+              pw.Text(
+                widget.studentName,
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+
+              pw.SizedBox(height: 6),
+
+              pw.Text(
+                widget.studentEmail,
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  color: PdfColors.grey700,
+                ),
+              ),
+
+              pw.SizedBox(height: 30),
+
+              pw.Text(
+                'Participó activamente en el evento académico:',
+                style: const pw.TextStyle(fontSize: 13),
+                textAlign: pw.TextAlign.center,
+              ),
+
+              pw.SizedBox(height: 12),
+
+              /// 🎤 EVENTO
+              pw.Text(
+                widget.title,
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+
+              pw.SizedBox(height: 20),
+
+              pw.Text(
+                'Celebrado y concluido el día ${_fmt(widget.endAt)}.',
+                style: const pw.TextStyle(fontSize: 13),
+                textAlign: pw.TextAlign.center,
+              ),
+
+              pw.Spacer(),
+
+              /// ✍ FIRMA
+              pw.Divider(),
+
+              pw.SizedBox(height: 12),
+
+              pw.Text(
+                'Para los fines académicos que convengan al interesado.',
+                style: const pw.TextStyle(fontSize: 11),
+                textAlign: pw.TextAlign.center,
+              ),
+
+              pw.SizedBox(height: 24),
+
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    children: [
+                      pw.Text('________________________'),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'Organizador del evento',
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  pw.Column(
+                    children: [
+                      pw.Text('________________________'),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'Sello institucional',
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+
+  /// 📥 DESCARGAR / COMPARTIR
+  await Printing.layoutPdf(
+    onLayout: (format) async => pdf.save(),
+  );
+}
+
+
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
@@ -118,8 +284,7 @@ class _CertificateCardState extends State<_CertificateCard>
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color:
-                    widget.theme.colorScheme.primary.withOpacity(0.1),
+                color: widget.theme.colorScheme.primary.withOpacity(0.1),
               ),
               child: Icon(
                 Icons.verified_rounded,
@@ -143,11 +308,7 @@ class _CertificateCardState extends State<_CertificateCard>
 
             const SizedBox(height: 28),
 
-            /// 📄 TEXTO
-            Text(
-              'Se hace constar que:',
-              style: widget.theme.textTheme.bodyMedium,
-            ),
+            Text('Se hace constar que:'),
 
             const SizedBox(height: 10),
 
@@ -164,17 +325,12 @@ class _CertificateCardState extends State<_CertificateCard>
 
             Text(
               widget.studentEmail,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(color: Colors.grey.shade600),
             ),
 
             const SizedBox(height: 28),
 
-            Text(
-              'Participó en el evento:',
-              style: widget.theme.textTheme.bodyMedium,
-            ),
+            Text('Participó en el evento:'),
 
             const SizedBox(height: 10),
 
@@ -189,16 +345,22 @@ class _CertificateCardState extends State<_CertificateCard>
 
             const SizedBox(height: 12),
 
-            Text(
-              'Fecha de término: ${_fmt(widget.endAt)}',
-              style: widget.theme.textTheme.bodyMedium,
+            Text('Fecha de término: ${_fmt(widget.endAt)}'),
+
+            const SizedBox(height: 28),
+
+            /// ⬇️ BOTÓN PDF
+            ElevatedButton.icon(
+              icon: const Icon(Icons.download),
+              label: const Text('Descargar PDF'),
+              onPressed: _downloadPdf,
             ),
 
-            const SizedBox(height: 36),
+            const SizedBox(height: 24),
 
-            /// 🖋 FOOTER
             Divider(color: Colors.grey.shade300),
             const SizedBox(height: 12),
+
             const Text(
               'Esta constancia es válida para fines académicos.',
               textAlign: TextAlign.center,
