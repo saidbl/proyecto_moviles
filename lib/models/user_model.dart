@@ -6,6 +6,7 @@ class AppUser {
   final String? photoUrl;
   final List<String> interests;
   final Map<String, dynamic> notificationPrefs;
+  final String? fcmToken;
 
   AppUser({
     required this.uid,
@@ -18,6 +19,7 @@ class AppUser {
       'reminders': true,
       'organizerAlerts': true,
     },
+    this.fcmToken,
   });
 
   Map<String, dynamic> toMap() => {
@@ -56,6 +58,7 @@ class AppUser {
               'organizerAlerts': true,
             },
       ),
+      fcmToken: map['fcmToken'],
     );
   }
 }

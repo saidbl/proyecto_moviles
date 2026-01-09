@@ -8,7 +8,6 @@ import '../services/notification_service.dart';
 import '../models/notification_model.dart';
 import 'calendar_screen.dart';
 import 'history_screen.dart';
-// ✅ Sprint 2 screens
 import 'events/event_list_screen.dart';
 import 'events/my_events_screen.dart';
 import 'events/create_edit_event_screen.dart';
@@ -16,6 +15,9 @@ import 'events/my_registrations_screen.dart';
 import 'admin/admin_stats_screen.dart';
 import 'organizer_stats_screen.dart';
 import 'admin/admin_management_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,6 +32,46 @@ class _HomeScreenState extends State<HomeScreen> {
   final userService = UserService();
   final notificationService = NotificationService();
 
+  @override
+  void initState() {
+    super.initState();
+    // Ejecutamos la configuración de notificaciones al iniciar
+    _setupPushNotifications();
+  }
+
+  Future<void> _setupPushNotifications() async {
+    final fcm = FirebaseMessaging.instance;
+
+    // 1. Pedir permiso (Android 13+ / iOS)
+    NotificationSettings settings = await fcm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('Permiso de notificaciones concedido');
+
+      // 2. Obtener el token
+      String? token = await fcm.getToken();
+
+      // 3. Obtener el usuario actual DIRECTAMENTE de Firebase Auth
+      // Esto soluciona tu error "The getter uid isn't defined..."
+      final user = FirebaseAuth.instance.currentUser; 
+      
+      if (token != null && user != null) {
+        // Guardamos el token en la colección users
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'fcmToken': token});
+            
+        print('Token FCM guardado correctamente para: ${user.email}');
+      }
+    } else {
+      print('Permiso de notificaciones denegado');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,10 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
               currentUid: u.uid,
               canRegister: true,
             ),
-            const MyRegistrationsScreen(), // ✅ aqui
+            const MyRegistrationsScreen(),
             const ProfileScreen(),
-            const CalendarScreen(),   // 📅
-            const HistoryScreen(),    
+            const CalendarScreen(),
+            const HistoryScreen(),   
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event), label: 'Eventos'),
@@ -139,7 +181,7 @@ NavigationDestination(
             title: Text('Hola, ${u.name} (${u.role})'),
             actions: [
 
-              // 🔔 NOTIFICACIONES
+              // NOTIFICACIONES
               StreamBuilder<List<AppNotification>>(
                 stream: notificationService.getMyNotifications(u.uid),
                 builder: (context, snap) {
@@ -162,7 +204,7 @@ NavigationDestination(
                         },
                       ),
 
-                      // 🔴 BADGE SI HAY NO LEÍDAS
+                      // BADGE SI HAY NO LEÍDAS
                       if (unreadCount > 0)
                         Positioned(
                           right: 10,
@@ -181,7 +223,7 @@ NavigationDestination(
                 },
               ),
 
-              // 🚪 LOGOUT
+              // LOGOUT
               IconButton(
                 tooltip: 'Cerrar sesión',
                 onPressed: () async => auth.signOut(),

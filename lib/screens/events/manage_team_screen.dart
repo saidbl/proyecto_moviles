@@ -4,13 +4,15 @@ import '../../services/event_service.dart';
 class ManageTeamScreen extends StatefulWidget {
   final String eventId;
   final String eventTitle;
-  final String currentUid; // Para saber que no puedo borrarme a mí mismo si soy el dueño
+  final String currentUid;
+  final bool isOwner; // 👈 1. NUEVO PARÁMETRO
 
   const ManageTeamScreen({
     super.key,
     required this.eventId,
     required this.eventTitle,
     required this.currentUid,
+    required this.isOwner,
   });
 
   @override
@@ -20,7 +22,7 @@ class ManageTeamScreen extends StatefulWidget {
 class _ManageTeamScreenState extends State<ManageTeamScreen> {
   final service = EventService();
 
-  @override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
@@ -29,16 +31,31 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
         backgroundColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          // 👇 3. LÓGICA DE SALIR (Si NO es el dueño, puede salir)
+          if (!widget.isOwner) 
+            IconButton(
+              tooltip: 'Salir del equipo',
+              icon: const Icon(Icons.exit_to_app, color: Colors.red),
+              onPressed: _confirmLeaveTeam,
+            )
+        ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showInviteDialog,
-        label: const Text('Invitar'),
-        icon: const Icon(Icons.person_add),
-        backgroundColor: Colors.indigo,
-      ),
+      
+      // 👇 4. LÓGICA DE INVITAR (Solo el dueño ve el botón)
+      floatingActionButton: widget.isOwner 
+          ? FloatingActionButton.extended(
+              onPressed: _showInviteDialog,
+              label: const Text('Invitar'),
+              icon: const Icon(Icons.person_add),
+              backgroundColor: Colors.indigo,
+            )
+          : null, // Si no es dueño, no hay botón flotante
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ... (Encabezado igual) ...
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
@@ -46,31 +63,17 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ),
+
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: service.streamEventTeam(widget.eventId),
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                // ... (Validaciones de error/loading iguales) ...
+                if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
                 final team = snapshot.data ?? [];
-
-                if (team.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.group_off_outlined, size: 60, color: Colors.grey),
-                        SizedBox(height: 10),
-                        Text('Aún no hay equipo asignado'),
-                      ],
-                    ),
-                  );
-                }
+                if (team.isEmpty) return const Center(child: Text('Aún no hay equipo asignado'));
 
                 return ListView.separated(
                   itemCount: team.length,
@@ -80,11 +83,14 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
                     final email = member['email'] ?? 'Sin correo';
                     final role = member['role'] ?? 'staff';
                     final uid = member['uid'];
-
-                    // Mapeo visual de roles
+                    
                     final isCoOrganizer = role == 'co_organizer';
-                    final roleLabel = isCoOrganizer ? 'Co-Organizador' : 'Staff (Escaner)';
+                    final roleLabel = isCoOrganizer ? 'Co-Organizador' : 'Staff';
                     final roleColor = isCoOrganizer ? Colors.purple : Colors.blueGrey;
+
+                    // 👇 5. LÓGICA DE BORRAR MIEMBROS
+                    // Solo muestro el botón si SOY EL DUEÑO y el usuario NO SOY YO
+                    final canDelete = widget.isOwner && (uid != widget.currentUid);
 
                     return ListTile(
                       leading: CircleAvatar(
@@ -96,10 +102,12 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
                       ),
                       title: Text(email, style: const TextStyle(fontWeight: FontWeight.w500)),
                       subtitle: Text(roleLabel, style: TextStyle(color: roleColor, fontSize: 12)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => _confirmRemoveMember(uid, email),
-                      ),
+                      trailing: canDelete
+                          ? IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _confirmRemoveMember(uid, email),
+                            )
+                          : null,
                     );
                   },
                 );
@@ -110,7 +118,6 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
       ),
     );
   }
-
   // 1. DIÁLOGO DE INVITACIÓN
   void _showInviteDialog() {
     final emailCtrl = TextEditingController();
@@ -244,6 +251,40 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
               }
             },
             child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmLeaveTeam() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Salir del equipo'),
+        content: const Text('¿Estás seguro que deseas dejar de colaborar en este evento?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                // Llamamos a la nueva función del servicio
+                await service.leaveEventTeam(widget.eventId);
+                
+                if (mounted) {
+                  Navigator.pop(context); // Salir de la pantalla ManageTeam
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Has abandonado el equipo')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Salir', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

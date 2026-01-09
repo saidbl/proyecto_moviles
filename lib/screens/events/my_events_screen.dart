@@ -241,7 +241,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       ),
     );
   }
-/// 🤝 WIDGET PRIVADO PARA LA LISTA DE COLABORACIONES
+
   Widget _buildCollaborationsSection() {
     return StreamBuilder<List<EventModel>>(
       stream: service.streamCollaborations(),
@@ -342,9 +342,8 @@ class _MyEventCardState extends State<_MyEventCard> {
     final e = widget.event;
     final theme = Theme.of(context);
     final hasImage = e.imageUrl != null && e.imageUrl!.isNotEmpty;
-    
-    // 🧠 Lógica: Solo el dueño original puede gestionar el equipo
     final isOwner = e.organizerId == widget.currentUid;
+    final isCollaborator = !(isOwner) &&  e.allowedUserIds.contains(currentUserId);
     final bool canEdit = currentUserId != null && 
     (e.organizerId == currentUserId || e.allowedUserIds.contains(currentUserId));
 
@@ -458,7 +457,7 @@ class _MyEventCardState extends State<_MyEventCard> {
                           ),
                           
                           // EDITAR: Solo si no está cancelado + Solo si soy Dueño o Co-Organizador (la lógica de permisos de DB ya nos protege, pero visualmente lo dejamos activo)
-                          if (!widget.isCancelled && canEdit)
+                          if (canEdit)
                             _ActionChip(
                               icon: Icons.edit,
                               label: 'Editar',
@@ -470,8 +469,7 @@ class _MyEventCardState extends State<_MyEventCard> {
                               ),
                             ),
 
-                          // 🆕 GESTIÓN DE EQUIPO: Solo visible para el Dueño
-                          if (!widget.isCancelled && !widget.isFinished && isOwner)
+                          if (!widget.isCancelled && !widget.isFinished && canEdit)
                             _ActionChip(
                               icon: Icons.group_add, // Icono de agregar gente
                               label: 'Equipo',
@@ -488,6 +486,7 @@ class _MyEventCardState extends State<_MyEventCard> {
                                       eventId: e.id,
                                       eventTitle: e.title,
                                       currentUid: widget.currentUid,
+                                      isOwner: isOwner,
                                     ),
                                   ),
                                 );

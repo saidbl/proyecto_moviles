@@ -196,59 +196,72 @@ class EventService {
     data['imageUrl'] = url;
   }
 
-  await _db.collection('events').doc(eventId).update(data);
+  // ... (tu código de update anterior) ...
+    await _db.collection('events').doc(eventId).update(data);
+
+    // 👇 NUEVO: Notificar a los inscritos sobre el cambio
+    final regSnap = await _db.collection('events').doc(eventId).collection('registrations').get();
+    
+    for (final doc in regSnap.docs) {
+      final uid = doc.data()['userId'];
+      if (uid != null) {
+        _notificationService.createNotification( // No usamos await para no trabar la UI
+          userId: uid,
+          title: 'Evento actualizado',
+          message: 'El organizador ha modificado los detalles del evento "$title". Revisa la nueva información.',
+        );
+      }
+    }
   }
 
   // =========================
-  // CANCEL (Soft Delete) - CORREGIDO
+  // CANCEL (Soft Delete) - CORREGIDO Y ROBUSTO
   // =========================
   Future<void> cancelEvent(String eventId) async {
     final eventRef = _db.collection('events').doc(eventId);
     final registrationsRef = eventRef.collection('registrations');
 
-    // Leemos los datos
     final results = await Future.wait([
-      eventRef.get(),          // Index 0: DocumentSnapshot
-      registrationsRef.get(),  // Index 1: QuerySnapshot
+      eventRef.get(),
+      registrationsRef.get(),
     ]);
 
-    // ✅ AQUÍ ESTÁ LA CORRECCIÓN: Decimos qué es cada cosa
     final eventSnap = results[0] as DocumentSnapshot<Map<String, dynamic>>;
     final regSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
     
     final title = eventSnap.data()?['title'] ?? 'Evento';
 
-    // Update estado
+    // 1. Actualizar estado del evento
     await eventRef.update({
       'isActive': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    // Notificación Organizador
+    // 2. Notificación al Organizador (Tú)
     await _notificationService.createNotification(
       userId: _uid,
       title: 'Evento cancelado',
       message: 'Has marcado el evento "$title" como cancelado.',
     );
 
-    // Notificaciones Estudiantes
-    final studentNotifications = <Future>[];
+    // 3. Notificaciones a Estudiantes (Bucle seguro)
+    // Usamos un for-loop simple en lugar de Future.wait para asegurar que
+    // un error en un usuario no detenga a los demás.
     for (final doc in regSnap.docs) {
-      final data = doc.data(); // Ahora sí reconoce .data()
+      final data = doc.data();
       final studentId = data['userId'];
+      
       if (studentId != null) {
-        studentNotifications.add(
-          _notificationService.createNotification(
+        try {
+          await _notificationService.createNotification(
             userId: studentId,
             title: 'Evento cancelado',
-            message: 'El evento "$title" al que estabas inscrito ha sido cancelado por el organizador.',
-          )
-        );
+            message: 'El evento "$title" ha sido cancelado por el organizador.',
+          );
+        } catch (e) {
+          print('Error enviando notificación a $studentId: $e');
+        }
       }
-    }
-    
-    if (studentNotifications.isNotEmpty) {
-      await Future.wait(studentNotifications);
     }
   }
 
@@ -528,7 +541,7 @@ class EventService {
       }
     }
 
-    Future<void> markAttendanceByOrganizer({
+  Future<void> markAttendanceByOrganizer({
   required String eventId,
   required String userId,
 }) async {
@@ -549,9 +562,19 @@ class EventService {
   }
 
   await regRef.update({
-    'attended': true,
-    'attendedAt': FieldValue.serverTimestamp(),
-  });
+      'attended': true,
+      'attendedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Obtenemos el título del evento primero
+    final eventSnap = await _db.collection('events').doc(eventId).get();
+    final title = eventSnap.data()?['title'] ?? 'Evento';
+
+    await _notificationService.createNotification(
+      userId: userId,
+      title: 'Asistencia registrada',
+      message: 'Tu asistencia al evento "$title" ha sido confirmada.',
+    );
 }
 
 Future<String> _uploadEventImage({
@@ -588,12 +611,12 @@ Future<String> _uploadEventImage({
   }
 
   /// Invitar usuario por Email
-  Future<void> inviteUserToEvent({
+ Future<void> inviteUserToEvent({
     required String eventId,
     required String email,
     required String role, // 'co_organizer' o 'staff'
   }) async {
-    // 1. Buscar usuario por email en la colección 'users'
+    // 1. Buscar usuario
     final userQuery = await _db
         .collection('users')
         .where('email', isEqualTo: email)
@@ -607,8 +630,9 @@ Future<String> _uploadEventImage({
     final userDoc = userQuery.docs.first;
     final newMemberUid = userDoc.id;
     final newMemberEmail = userDoc.data()['email'] ?? email;
+    final newMemberName = userDoc.data()['name'] ?? 'Usuario';
 
-    // 2. Verificar si ya está en el equipo
+    // 2. Verificar si ya está
     final eventRef = _db.collection('events').doc(eventId);
     final teamRef = eventRef.collection('team').doc(newMemberUid);
     
@@ -617,10 +641,13 @@ Future<String> _uploadEventImage({
       throw Exception('El usuario ya es parte del equipo.');
     }
 
-    // 3. Transacción Batch (Agregar a Subcolección + Array Padre)
+    final eventSnap = await eventRef.get();
+    final eventTitle = eventSnap.data()?['title'] ?? 'Evento';
+
+    // 3. Transacción Batch
     final batch = _db.batch();
 
-    // Guardar rol específico en subcolección
+    // A. Guardar en subcolección team
     batch.set(teamRef, {
       'email': newMemberEmail,
       'role': role,
@@ -628,35 +655,91 @@ Future<String> _uploadEventImage({
       'addedBy': _uid,
     });
 
-    // Dar permiso de lectura general en el documento padre
+    // B. Actualizar documento PADRE (Permisos + Mapa de Roles)
     batch.update(eventRef, {
-      'allowedUserIds': FieldValue.arrayUnion([newMemberUid])
+      'allowedUserIds': FieldValue.arrayUnion([newMemberUid]),
+      'roles.$newMemberUid': role, // 👈 ESTO FALTABA PARA QUE FUNCIONE EL BOTÓN EDITAR
     });
 
     await batch.commit();
+
+    // 4. Notificar al usuario invitado
+    await _notificationService.createNotification(
+      userId: newMemberUid,
+      title: 'Invitación a equipo',
+      message: 'Te han añadido como "$role" al evento "$eventTitle".',
+    );
   }
 
   /// Eliminar miembro del equipo
   Future<void> removeMemberFromEvent(String eventId, String memberUid) async {
-    // Validar que no se elimine al dueño
-    final eventSnap = await _db.collection('events').doc(eventId).get();
+    final eventRef = _db.collection('events').doc(eventId);
+    final eventSnap = await eventRef.get();
+    
     if (eventSnap.data()?['organizerId'] == memberUid) {
       throw Exception('No puedes eliminar al propietario del evento.');
     }
 
+    final eventTitle = eventSnap.data()?['title'] ?? 'Evento';
+
     final batch = _db.batch();
 
     // 1. Borrar de subcolección team
-    final teamRef = _db.collection('events').doc(eventId).collection('team').doc(memberUid);
+    final teamRef = eventRef.collection('team').doc(memberUid);
     batch.delete(teamRef);
 
-    // 2. Sacar del array de permisos (ya no verá el evento en su lista)
-    final eventRef = _db.collection('events').doc(eventId);
+    // 2. Sacar del array de permisos Y del mapa de roles
     batch.update(eventRef, {
-      'allowedUserIds': FieldValue.arrayRemove([memberUid])
+      'allowedUserIds': FieldValue.arrayRemove([memberUid]),
+      'roles.$memberUid': FieldValue.delete(), // 👈 Limpiamos el rol también
     });
 
     await batch.commit();
+
+    // 3. Notificar al usuario eliminado
+    await _notificationService.createNotification(
+      userId: memberUid,
+      title: 'Removido del equipo',
+      message: 'Ya no formas parte del equipo del evento "$eventTitle".',
+    );
   }
 
+  Future<void> leaveEventTeam(String eventId) async {
+    final me = await _userService.streamMe().first;
+    
+    // 1. Validar que no sea el dueño
+    final eventRef = _db.collection('events').doc(eventId);
+    final eventSnap = await eventRef.get();
+    
+    if (eventSnap.data()?['organizerId'] == _uid) {
+      throw Exception('El organizador principal no puede abandonar el evento, debe cancelarlo o transferirlo.');
+    }
+
+    final eventTitle = eventSnap.data()?['title'] ?? 'Evento';
+    final organizerId = eventSnap.data()?['organizerId'];
+
+    final batch = _db.batch();
+
+    // 2. Borrar de subcolección team
+    final teamRef = eventRef.collection('team').doc(_uid);
+    batch.delete(teamRef);
+
+    // 3. Sacar del array de permisos y del mapa de roles
+    batch.update(eventRef, {
+      'allowedUserIds': FieldValue.arrayRemove([_uid]),
+      'roles.$_uid': FieldValue.delete(),
+    });
+
+    await batch.commit();
+
+    // 4. NOTIFICACIÓN AL ORGANIZADOR
+    // Aquí avisamos al dueño que alguien se fue
+    if (organizerId != null) {
+      await _notificationService.createNotification(
+        userId: organizerId,
+        title: 'Baja del equipo',
+        message: '${me.name} ha abandonado el equipo de tu evento "$eventTitle".',
+      );
+    }
+  }
 }
