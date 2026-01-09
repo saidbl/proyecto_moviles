@@ -155,7 +155,7 @@ class _EventListScreenState extends State<EventListScreen> {
           final now = DateTime.now();
 
           // =================================================
-          // 🧠 LÓGICA DE FILTRADO MAESTRO
+          //  LÓGICA DE FILTRADO MAESTRO
           // =================================================
           final ongoingEvents = <EventModel>[];
           final otherEvents = <EventModel>[];
@@ -214,7 +214,7 @@ class _EventListScreenState extends State<EventListScreen> {
 
           return Column(
             children: [
-              // ✅ BÚSQUEDA AVANZADA (Desplegable)
+              //  BÚSQUEDA AVANZADA (Desplegable)
               _AdvancedSearchCard(
                 categories: categories,
                 locations: locations,
@@ -237,18 +237,33 @@ class _EventListScreenState extends State<EventListScreen> {
               // Indicador de filtros ocultos (Ayuda visual al usuario)
               if (!_showFinished || !_showCancelled)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 14, color: Colors.grey.shade500),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Los eventos finalizados o cancelados están ocultos por defecto.',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ),
+  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(
+        Icons.info_outline,
+        size: 14,
+        color: Colors.grey.shade500,
+      ),
+      const SizedBox(width: 6),
+
+      ///  CLAVE: Expanded
+      Expanded(
+        child: Text(
+          'Los eventos finalizados o cancelados están ocultos por defecto.',
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey.shade600,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ],
+  ),
+),
+
 
               Expanded(
                 child: displayList.isEmpty
@@ -304,7 +319,7 @@ class _EventListScreenState extends State<EventListScreen> {
 }
 
 // ---------------------------------------------------------
-// ✅ BÚSQUEDA AVANZADA MEJORADA
+//  BÚSQUEDA AVANZADA MEJORADA
 // ---------------------------------------------------------
 class _AdvancedSearchCard extends StatelessWidget {
   final List<String> categories;
@@ -472,7 +487,6 @@ class _AdvancedSearchCard extends StatelessWidget {
 
 // ---------------------------------------------------------
 // COMPONENTES VISUALES
-// (Copia estos tal cual si no los tenías definidos abajo)
 // ---------------------------------------------------------
 
 class _EventCard extends StatefulWidget {

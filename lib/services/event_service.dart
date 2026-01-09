@@ -199,7 +199,7 @@ class EventService {
   // ... (tu código de update anterior) ...
     await _db.collection('events').doc(eventId).update(data);
 
-    // 👇 NUEVO: Notificar a los inscritos sobre el cambio
+    //  NUEVO: Notificar a los inscritos sobre el cambio
     final regSnap = await _db.collection('events').doc(eventId).collection('registrations').get();
     
     for (final doc in regSnap.docs) {
@@ -278,7 +278,7 @@ class EventService {
       eventRef.get(),                             // Index 2: DocumentSnapshot
     ]);
 
-    // ✅ CORRECCIÓN DE TIPOS
+    // CORRECCIÓN DE TIPOS
     final regDocs = (results[0] as QuerySnapshot).docs;
     final commentDocs = (results[1] as QuerySnapshot).docs;
     final eventSnap = results[2] as DocumentSnapshot<Map<String, dynamic>>;
@@ -592,7 +592,7 @@ Future<String> _uploadEventImage({
 }
 
 // =========================
-  // 👥 GESTIÓN DE EQUIPO (NUEVO)
+  // GESTIÓN DE EQUIPO (NUEVO)
   // =========================
 
   /// Obtener la lista de miembros del equipo

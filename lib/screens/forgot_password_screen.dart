@@ -69,7 +69,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🔵 FONDO AZUL DEGRADADO (MISMO SISTEMA VISUAL)
+          //  FONDO AZUL DEGRADADO (MISMO SISTEMA VISUAL)
           SizedBox(
             height: size.height,
             width: size.width,

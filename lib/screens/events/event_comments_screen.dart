@@ -96,7 +96,7 @@ class _EventCommentsScreenState extends State<EventCommentsScreen> {
       ),
       body: Column(
         children: [
-          /// 💬 LISTA DE COMENTARIOS
+          ///  LISTA DE COMENTARIOS
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: commentsRef.snapshots(),
@@ -132,7 +132,7 @@ class _EventCommentsScreenState extends State<EventCommentsScreen> {
             ),
           ),
 
-          /// ✍️ INPUT (SOLO SI PUEDE COMENTAR)
+          ///  INPUT (SOLO SI PUEDE COMENTAR)
           if (widget.canComment)
             SafeArea(
               child: Container(
@@ -230,7 +230,7 @@ class _CommentBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// 👤 NOMBRE DEL ALUMNO
+          ///  NOMBRE DEL ALUMNO
           Text(
             userName,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -240,7 +240,7 @@ class _CommentBubble extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
-          /// 💬 TEXTO
+          ///  TEXTO
           Text(
             text,
             style: theme.textTheme.bodyMedium,

@@ -22,7 +22,7 @@ class _MyRegistrationsScreenState extends State<MyRegistrationsScreen> {
   // Configuración Sección HISTORIAL
   SortOption _sortHistory = SortOption.dateDesc; // Más recientes primero
   
-  // 🔽 FILTROS DE VISIBILIDAD (Estado)
+  //  FILTROS DE VISIBILIDAD (Estado)
   bool _showFinished = true;  
   bool _showCancelled = true; 
 
@@ -57,7 +57,7 @@ class _MyRegistrationsScreenState extends State<MyRegistrationsScreen> {
           }
 
           // ====================================================
-          // 🧠 LÓGICA DE SEPARACIÓN (Basada en Fecha)
+          //  LÓGICA DE SEPARACIÓN (Basada en Fecha)
           // ====================================================
           final now = DateTime.now();
           
@@ -266,7 +266,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// 🧠 WRAPPER INTELIGENTE
+///  WRAPPER INTELIGENTE
 /// Este widget decide si mostrar la tarjeta o un espacio vacío (SizedBox.shrink)
 /// basándose en el estado REAL del evento y los filtros globales.
 class _RegistrationCardWrapper extends StatelessWidget {

@@ -92,7 +92,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🔵 FONDO AZUL DEGRADADO (MISMO QUE LOGIN)
+          //  FONDO AZUL DEGRADADO (MISMO QUE LOGIN)
           SizedBox(
             height: size.height,
             width: size.width,

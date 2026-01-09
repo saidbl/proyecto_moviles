@@ -124,7 +124,7 @@ class _HistoryCardState extends State<_HistoryCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// 🏷 TÍTULO
+              ///  TÍTULO
               Text(
                 r.eventTitle ?? 'Evento sin título',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -134,7 +134,7 @@ class _HistoryCardState extends State<_HistoryCard> {
 
               const SizedBox(height: 6),
 
-              /// 📅 FECHA
+              ///  FECHA
               Text(
                 'Finalizó el ${_fmt(r.eventEndAt!)}',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -144,7 +144,7 @@ class _HistoryCardState extends State<_HistoryCard> {
 
               const SizedBox(height: 16),
 
-              /// 🎓 ESTADO
+              ///  ESTADO
               Row(
                 children: [
                   Icon(
@@ -168,7 +168,7 @@ class _HistoryCardState extends State<_HistoryCard> {
 
               const SizedBox(height: 16),
 
-              /// 🔘 ACCIONES (SOLO SI ASISTIÓ)
+              ///  ACCIONES (SOLO SI ASISTIÓ)
               if (widget.attended)
                 Row(
                   children: [

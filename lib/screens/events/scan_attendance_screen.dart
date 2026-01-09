@@ -110,20 +110,20 @@ class _ScanAttendanceScreenState
       ),
       body: Stack(
         children: [
-          /// 📸 CÁMARA
+          ///  CÁMARA
           MobileScanner(
             onDetect: (capture) =>
                 _onDetect(context, capture),
           ),
 
-          /// 🟦 OVERLAY OSCURO
+          ///  OVERLAY OSCURO
           Positioned.fill(
             child: Container(
               color: Colors.black.withOpacity(0.4),
             ),
           ),
 
-          /// 🎯 MARCO DE ESCANEO
+          ///  MARCO DE ESCANEO
           Center(
             child: AspectRatio(
               aspectRatio: 1,
@@ -139,7 +139,7 @@ class _ScanAttendanceScreenState
                     ),
                   ),
 
-                  /// 🔵 LÍNEA ANIMADA
+                  ///  LÍNEA ANIMADA
                   AnimatedBuilder(
                     animation: _scanLine,
                     builder: (context, _) {
@@ -161,7 +161,7 @@ class _ScanAttendanceScreenState
             ),
           ),
 
-          /// 🧠 TEXTO DE AYUDA
+          ///  TEXTO DE AYUDA
           Positioned(
             bottom: 48,
             left: 24,

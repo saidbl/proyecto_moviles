@@ -100,7 +100,7 @@ class _QrCardState extends State<_QrCard>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            /// 🎫 ICONO
+            /// ICONO
             Container(
               width: 52,
               height: 52,
@@ -118,7 +118,7 @@ class _QrCardState extends State<_QrCard>
 
             const SizedBox(height: 16),
 
-            /// 🏷 TÍTULO
+            ///  TÍTULO
             Text(
               'Código de asistencia',
               style: theme.textTheme.titleMedium?.copyWith(
@@ -128,7 +128,7 @@ class _QrCardState extends State<_QrCard>
 
             const SizedBox(height: 6),
 
-            /// ℹ️ SUBTEXTO
+            ///  SUBTEXTO
             Text(
               'Muestra este código al organizador para registrar tu asistencia.',
               textAlign: TextAlign.center,
@@ -139,7 +139,7 @@ class _QrCardState extends State<_QrCard>
 
             const SizedBox(height: 24),
 
-            /// 🔳 QR
+            ///  QR
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -158,7 +158,7 @@ class _QrCardState extends State<_QrCard>
 
             const SizedBox(height: 24),
 
-            /// 🔐 FOOTER
+            /// FOOTER
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

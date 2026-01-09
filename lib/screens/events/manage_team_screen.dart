@@ -5,7 +5,7 @@ class ManageTeamScreen extends StatefulWidget {
   final String eventId;
   final String eventTitle;
   final String currentUid;
-  final bool isOwner; // 👈 1. NUEVO PARÁMETRO
+  final bool isOwner; 
 
   const ManageTeamScreen({
     super.key,
@@ -32,7 +32,7 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
         elevation: 0.5,
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
-          // 👇 3. LÓGICA DE SALIR (Si NO es el dueño, puede salir)
+          //  LÓGICA DE SALIR (Si NO es el dueño, puede salir)
           if (!widget.isOwner) 
             IconButton(
               tooltip: 'Salir del equipo',
@@ -42,7 +42,7 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
         ],
       ),
       
-      // 👇 4. LÓGICA DE INVITAR (Solo el dueño ve el botón)
+      //  LÓGICA DE INVITAR (Solo el dueño ve el botón)
       floatingActionButton: widget.isOwner 
           ? FloatingActionButton.extended(
               onPressed: _showInviteDialog,
@@ -88,7 +88,7 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
                     final roleLabel = isCoOrganizer ? 'Co-Organizador' : 'Staff';
                     final roleColor = isCoOrganizer ? Colors.purple : Colors.blueGrey;
 
-                    // 👇 5. LÓGICA DE BORRAR MIEMBROS
+                    //  LÓGICA DE BORRAR MIEMBROS
                     // Solo muestro el botón si SOY EL DUEÑO y el usuario NO SOY YO
                     final canDelete = widget.isOwner && (uid != widget.currentUid);
 

@@ -5,7 +5,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // 🔒 Admin único
+  //  Admin único
   static const String adminEmail = 'admin@ipn.mx';
 
   // Dominios
@@ -48,17 +48,17 @@ class AuthService {
     final cleanName = name.trim();
     final cleanPassword = password.trim();
 
-    // ❌ Bloquear admin
+    //  Bloquear admin
     if (cleanEmail == adminEmail) {
       throw Exception('La cuenta de administrador no se registra desde la app.');
     }
 
-    // ❌ Bloquear organizadores
+    //  Bloquear organizadores
     if (cleanEmail.endsWith(domainOrganizer)) {
       throw Exception('Las cuentas de organizador las crea el administrador.');
     }
 
-    // ✅ Permitir SOLO alumnos
+    //  Permitir SOLO alumnos
     if (!cleanEmail.endsWith(domainStudent)) {
       throw Exception('Solo se permite registro con correo $domainStudent');
     }
@@ -75,7 +75,7 @@ class AuthService {
         'uid': user.uid,
         'name': cleanName,
         'email': cleanEmail,
-        'role': 'estudiante', // ✅ fijo: solo alumnos se registran
+        'role': 'estudiante', //  fijo: solo alumnos se registran
         'photoUrl': null,
         'interests': [],
         'notificationPrefs': {

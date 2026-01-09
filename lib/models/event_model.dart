@@ -19,7 +19,6 @@ class EventModel {
   final String organizerId;
   final String organizerName;
 
-  // 👇 NUEVO: Lista de UIDs permitidos (Admin + Staff)
   final List<String> allowedUserIds; 
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -40,13 +39,12 @@ class EventModel {
     required this.registrationsCount,
     required this.organizerId,
     required this.organizerName,
-    required this.allowedUserIds, // 👈 Requerido en constructor
+    required this.allowedUserIds, 
     this.createdAt,
     this.updatedAt,
     this.imageUrl,
   });
 
-  // ✅ Helpers
   int get remaining => (capacity - registrationsCount).clamp(0, capacity);
   bool get isFull => remaining <= 0;
 
@@ -66,13 +64,11 @@ class EventModel {
         'registrationsCount': registrationsCount,
         'organizerId': organizerId,
         'organizerName': organizerName,
-        // 👇 Guardamos la lista en Firestore
         'allowedUserIds': allowedUserIds, 
         'createdAt': createdAt == null
             ? FieldValue.serverTimestamp()
             : Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
-        // Agregamos imageUrl al mapa si existe (faltaba en tu versión anterior)
         if (imageUrl != null) 'imageUrl': imageUrl,
       };
 
@@ -113,7 +109,7 @@ class EventModel {
       registrationsCount: parseInt(d['registrationsCount']),
       organizerId: (d['organizerId'] ?? '').toString(),
       organizerName: (d['organizerName'] ?? '').toString(),
-      // 👇 Parseamos la lista
+      // Parseamos la lista
       allowedUserIds: parseAllowed(d['allowedUserIds']), 
       imageUrl: d['imageUrl'],
       createdAt:

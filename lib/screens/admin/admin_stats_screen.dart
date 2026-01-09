@@ -22,7 +22,7 @@ class AdminStatsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          /// 📊 KPIs PRINCIPALES
+          ///  KPIs PRINCIPALES
           GridView.count(
             crossAxisCount:
                 MediaQuery.of(context).size.width > 700 ? 3 : 2,
@@ -90,7 +90,7 @@ class AdminStatsScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
 
-          /// 📈 INDICADORES AVANZADOS
+          ///  INDICADORES AVANZADOS
           const _SectionTitle('Indicadores avanzados'),
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: db.collection('events').snapshots(),
@@ -143,7 +143,7 @@ class AdminStatsScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
 
-          /// ⭐ TOP EVENTOS
+          ///  TOP EVENTOS
           const _SectionTitle('Top eventos por inscritos'),
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: db.collection('events').snapshots(),
@@ -171,7 +171,7 @@ class AdminStatsScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
 
-          /// 🥧 CATEGORÍAS
+          ///  CATEGORÍAS
           const _SectionTitle('Eventos por categoría'),
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: db.collection('events').snapshots(),
@@ -232,7 +232,7 @@ class AdminStatsScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
 
-          /// ⚠️ BAJA ASISTENCIA
+          ///  BAJA ASISTENCIA
           const _SectionTitle('Eventos con baja asistencia'),
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: db.collection('events').snapshots(),
@@ -370,25 +370,41 @@ class _InfoCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon),
+          Icon(icon, size: 28),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              Text(label,
-                  style: TextStyle(color: Colors.grey.shade600)),
-            ],
+
+          /// 🔥 CLAVE PARA EVITAR OVERFLOW
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 13,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 }
+
 
 class _RankCard extends StatelessWidget {
   final String title;

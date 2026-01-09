@@ -94,7 +94,7 @@ class _CertificateCardState extends State<_CertificateCard>
   }
 
   /// ============================
-  /// 📄 GENERAR Y DESCARGAR PDF
+  ///  GENERAR Y DESCARGAR PDF
   /// ============================
   Future<void> _downloadPdf() async {
   final pdf = pw.Document();
@@ -202,7 +202,7 @@ class _CertificateCardState extends State<_CertificateCard>
 
               pw.Spacer(),
 
-              /// ✍ FIRMA
+              ///  FIRMA
               pw.Divider(),
 
               pw.SizedBox(height: 12),
@@ -247,7 +247,7 @@ class _CertificateCardState extends State<_CertificateCard>
     ),
   );
 
-  /// 📥 DESCARGAR / COMPARTIR
+  ///  DESCARGAR / COMPARTIR
   await Printing.layoutPdf(
     onLayout: (format) async => pdf.save(),
   );
@@ -349,7 +349,7 @@ class _CertificateCardState extends State<_CertificateCard>
 
             const SizedBox(height: 28),
 
-            /// ⬇️ BOTÓN PDF
+            ///  BOTÓN PDF
             ElevatedButton.icon(
               icon: const Icon(Icons.download),
               label: const Text('Descargar PDF'),

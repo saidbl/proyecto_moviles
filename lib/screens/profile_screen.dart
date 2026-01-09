@@ -161,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      /// 👤 HEADER PERFIL
+                      ///  HEADER PERFIL
                       _ProfileHeader(
                         user: u,
                         loading: loading,
@@ -170,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       const SizedBox(height: 28),
 
-                      /// 📄 INFO PERSONAL
+                      ///  INFO PERSONAL
                       _SectionCard(
                         title: 'Información personal',
                         children: [

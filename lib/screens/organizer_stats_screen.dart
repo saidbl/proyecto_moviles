@@ -101,7 +101,7 @@ class OrganizerStatsScreen extends StatelessWidget {
 
                   const SizedBox(height: 28),
 
-                  /// 🥧 ASISTENCIA
+                  ///  ASISTENCIA
                   const _SectionTitle('Asistencia global'),
                   SizedBox(
                     height: 220,
@@ -141,7 +141,7 @@ class OrganizerStatsScreen extends StatelessWidget {
 
                   const SizedBox(height: 28),
 
-                  /// 📊 CATEGORÍAS
+                  ///  CATEGORÍAS
                   const _SectionTitle('Eventos por categoría'),
                   SizedBox(
                     height: 260,

@@ -56,7 +56,7 @@ class NotificationsScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 14),
                     child: _AnimatedNotificationTile(
                       notification: n,
-                      // 🆕 1. Pasamos la función de eliminar
+                      //  1. Pasamos la función de eliminar
                       onDelete: () async {
                         await notificationService.deleteNotification(n.id);
                       },
@@ -80,7 +80,7 @@ class NotificationsScreen extends StatelessWidget {
 class _AnimatedNotificationTile extends StatefulWidget {
   final AppNotification notification;
   final VoidCallback onTap;
-  final VoidCallback onDelete; // 🆕 2. Recibimos el callback
+  final VoidCallback onDelete; //  2. Recibimos el callback
 
   const _AnimatedNotificationTile({
     required this.notification,
@@ -122,7 +122,7 @@ class _AnimatedNotificationTileState extends State<_AnimatedNotificationTile> {
               ),
             ],
           ),
-          // 🆕 3. Usamos Stack para poner el botón encima
+          //  3. Usamos Stack para poner el botón encima
           child: Stack(
             children: [
               // El contenido original (Tile)
@@ -135,7 +135,7 @@ class _AnimatedNotificationTileState extends State<_AnimatedNotificationTile> {
                 ),
               ),
               
-              // 🆕 4. El Botón de Eliminar en la esquina
+              //  4. El Botón de Eliminar en la esquina
               Positioned(
                 top: 5,
                 right: 5,

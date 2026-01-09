@@ -44,7 +44,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         actions: [
-          // 🛠 TU SUPER MENÚ ORIGINAL (Intacto)
           PopupMenuButton<dynamic>(
             icon: const Icon(Icons.tune, color: Colors.black87),
             tooltip: 'Filtrar y Ordenar',
@@ -111,19 +110,16 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      // 👇👇👇 CAMBIO PRINCIPAL: SingleChildScrollView + Column 👇👇👇
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             
-            // 1. TÍTULO SECCIÓN PROPIA
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 20, 16, 0),
               child: Text('Mis Eventos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
 
-            // 2. TU STREAM BUILDER ORIGINAL (Lógica intacta)
             StreamBuilder<List<EventModel>>(
               stream: service.streamMyEvents(),
               initialData: const [],
@@ -142,7 +138,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                   return const _EmptyMyEventsState();
                 }
 
-                // --- TU LÓGICA DE FILTRADO (COPIADA TAL CUAL) ---
                 final now = DateTime.now();
                 
                 final ongoingEvents = <EventModel>[];
@@ -207,7 +202,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  // 👇 Ajustes necesarios para que funcione dentro del Scroll principal
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   itemCount: displayList.length,
@@ -232,7 +226,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               },
             ),
 
-            // 3. NUEVA SECCIÓN: COLABORACIONES
             _buildCollaborationsSection(),
 
             const SizedBox(height: 40),
@@ -431,7 +424,7 @@ class _MyEventCardState extends State<_MyEventCard> {
 
                       const SizedBox(height: 6),
 
-                      /// 📍 INFO
+                      /// INFO
                       _InfoRow(icon: Icons.category_outlined, text: '${e.category} • ${e.subcategory}'),
                       const SizedBox(height: 4),
                       _InfoRow(icon: Icons.location_on_outlined, text: e.location),
@@ -440,7 +433,7 @@ class _MyEventCardState extends State<_MyEventCard> {
 
                       const SizedBox(height: 16),
                       
-                      /// 🎛 ACCIONES (Wrap)
+                      ///  ACCIONES (Wrap)
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,

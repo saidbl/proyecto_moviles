@@ -190,7 +190,7 @@ class _EventCardState extends State<_EventCard> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              /// 🕒 HORA
+              ///  HORA
               Container(
                 width: 52,
                 height: 52,
@@ -211,7 +211,7 @@ class _EventCardState extends State<_EventCard> {
 
               const SizedBox(width: 16),
 
-              /// 📄 INFO
+              ///  INFO
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
