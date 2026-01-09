@@ -153,9 +153,9 @@ NavigationDestination(
           ];
           destinations = const [
             NavigationDestination(icon: Icon(Icons.event_available), label: 'Eventos'),
+            NavigationDestination(icon: Icon(Icons.admin_panel_settings), label: 'Gestión'),
             NavigationDestination(icon: Icon(Icons.query_stats), label: 'Estadísticas'),
-            NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
-            NavigationDestination(icon: Icon(Icons.admin_panel_settings),label: 'Gestión',),
+            NavigationDestination(icon: Icon(Icons.person),label: 'Mi perfil',),
           ];
         } else {
           // fallback por si llega un rol raro
