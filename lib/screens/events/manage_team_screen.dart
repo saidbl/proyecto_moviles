@@ -156,11 +156,11 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
                   items: const [
                     DropdownMenuItem(
                       value: 'staff',
-                      child: Text('Staff (Solo Escanear)'),
+                      child: Text('Staff'),
                     ),
                     DropdownMenuItem(
                       value: 'co_organizer',
-                      child: Text('Co-Organizador (Editar + Escanear)'),
+                      child: Text('Co-Organizador'),
                     ),
                   ],
                   onChanged: (val) {
