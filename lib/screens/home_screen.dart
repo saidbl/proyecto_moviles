@@ -15,6 +15,7 @@ import 'events/create_edit_event_screen.dart';
 import 'events/my_registrations_screen.dart';
 import 'admin/admin_stats_screen.dart';
 import 'organizer_stats_screen.dart';
+import 'admin/admin_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -104,6 +105,7 @@ NavigationDestination(
               currentUid: u.uid,
               canRegister: false,
             ),
+            const AdminManagementScreen(),
             const AdminStatsScreen(),
             const ProfileScreen(),
           ];
@@ -111,6 +113,7 @@ NavigationDestination(
             NavigationDestination(icon: Icon(Icons.event_available), label: 'Eventos'),
             NavigationDestination(icon: Icon(Icons.query_stats), label: 'Estadísticas'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
+            NavigationDestination(icon: Icon(Icons.admin_panel_settings),label: 'Gestión',),
           ];
         } else {
           // fallback por si llega un rol raro
